@@ -1,0 +1,21 @@
+# --- secrets / local config ---
+.env
+
+# --- shared venv symlink ---
+.venv
+
+# --- Python ---
+__pycache__/
+*.pyc
+
+# --- runtime state ---
+stats.sqlite
+
+# --- generated / derived data (large; re-crawlable / re-buildable) ---
+data/pdfs/
+data/embeddings.npy
+data/index.sqlite
+data/build_index.log
+data/crawl/*.log
+data/crawl/state.json
+data/crawl/raad_state.json

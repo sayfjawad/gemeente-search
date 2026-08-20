@@ -1,0 +1,19 @@
+# gemeente-search — runtime deps (app + crawler).
+# Runtime venv = /data/git/lift-normen-search/.venv (shared, proven ML stack:
+# torch 2.8.0+cu128, transformers 5.15.0, pymupdf, fastapi). These are the
+# packages the project itself adds on top. See README for setup.
+
+fastapi
+uvicorn
+torch
+transformers
+numpy
+httpx
+pymupdf
+pydantic
+
+# crawler
+playwright==1.55.0
+trafilatura==1.9.0
+beautifulsoup4==4.12.3
+lxml==5.1.0
