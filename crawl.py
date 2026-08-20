@@ -133,11 +133,15 @@ def strip_fragment(url: str) -> str:
 
 
 def canonicalize(url: str) -> str:
-    """Drop cache-buster query strings on CDN uploads so the same PDF isn't
-    re-crawled under multiple `?cb=` URLs."""
+    """Normalise a URL so the same page isn't re-crawled under variants:
+    drop cache-buster query strings on CDN uploads, and force http -> https
+    (TYPO3 sites often list `http://` in their sitemap while the real pages
+    are served (and BFS-linked) over https — fetching both doubles the crawl)."""
     p = urlparse(url)
     if p.netloc.split(":")[0].lower() == CDN_HOST:
         return url.split("?", 1)[0]
+    if p.scheme == "http":
+        url = url.replace("http://", "https://", 1)
     return url
 
 

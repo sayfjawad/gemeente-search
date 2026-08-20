@@ -61,5 +61,15 @@
     "cdn_prefix": "",
     "product_sitemap": "https://loket.digitaal.utrecht.nl/nl/sitemap.xml",
     "skip_paths": ["^/nl/?$", "^/nl/producten/?$"]
+  },
+  {
+    "slug": "houten",
+    "name": "Houten",
+    "enabled": true,
+    "logo": "logos/houten.svg",
+    "website": "https://www.houten.nl",
+    "start_url": "https://www.houten.nl/",
+    "search_url": "https://www.houten.nl/zoeken",
+    "cdn_prefix": ""
   }
 ]
