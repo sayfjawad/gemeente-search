@@ -3,17 +3,30 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gemeenten — slim zoeken</title>
+<title>Slimme Gemeente Assistent</title>
 <style>
 :root{
-  --bg:#f4f5f7; --panel:#ffffff; --ink:#1e2430; --muted:#68707f;
-  --accent:#0f6b4f; --accent-soft:#e6f2ec; --border:#dde1e8;
-  --ok:#0f8a5f; --warn:#b45309;
+  --bg:#f5f7fa; --panel:#ffffff; --ink:#0f172a; --muted:#64748b;
+  --accent:#2563eb; --accent-strong:#1d4ed8; --accent-soft:#dbeafe; --on-accent:#ffffff;
+  --border:#e2e8f0; --ok:#16a34a; --warn:#d97706;
+  --hero-from:#1d4ed8; --hero-to:#3b82f6;
+  --shadow:0 8px 24px rgba(15,23,42,.10);
+}
+:root[data-theme="dark"]{
+  --bg:#0b1220; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8;
+  --accent:#3b82f6; --accent-strong:#60a5fa; --accent-soft:#1e293b; --on-accent:#ffffff;
+  --border:#1f2937; --ok:#22c55e; --warn:#f59e0b;
+  --hero-from:#172554; --hero-to:#1e40af;
+  --shadow:0 8px 24px rgba(0,0,0,.45);
 }
 @media (prefers-color-scheme: dark){
-  :root{--bg:#14161a; --panel:#1e2128; --ink:#e8eaef; --muted:#9aa2b1;
-        --accent:#34d399; --accent-soft:#1d2c4a; --border:#343945;
-        --ok:#34d399; --warn:#fbbf24;}
+  :root:not([data-theme="light"]){
+    --bg:#0b1220; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8;
+    --accent:#3b82f6; --accent-strong:#60a5fa; --accent-soft:#1e293b; --on-accent:#ffffff;
+    --border:#1f2937; --ok:#22c55e; --warn:#f59e0b;
+    --hero-from:#172554; --hero-to:#1e40af;
+    --shadow:0 8px 24px rgba(0,0,0,.45);
+  }
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);
@@ -21,41 +34,43 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .wrap{max-width:920px;margin:0 auto;padding:16px 16px 60px}
 
 header.hero{position:relative;border-radius:16px;overflow:hidden;margin-bottom:20px;
-  border:1px solid var(--border);color:#f5f6fa;padding:24px;
-  min-height:150px;display:flex;align-items:center;gap:18px;
-  background-color:#0a3d2e;
-  background-image:linear-gradient(150deg,
-      rgba(7,40,30,.95) 0%,
-      rgba(11,64,47,.88) 40%,
-      rgba(15,107,79,.58) 74%,
-      rgba(18,121,79,.30) 100%)}
-header.hero .logo-tile{position:relative;z-index:1;flex:0 0 auto;width:64px;height:64px;
-  border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;
-  overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.35)}
-header.hero .logo-tile img{max-width:84%;max-height:84%;object-fit:contain}
-header.hero .hero-text{position:relative;z-index:1;max-width:680px}
-header.hero h1{font-size:1.5rem;margin:0 0 6px;text-shadow:0 2px 10px rgba(0,0,0,.45)}
-header.hero p{margin:0;color:#e6ede8;font-size:.95rem;text-shadow:0 1px 6px rgba(0,0,0,.4)}
+  padding:26px 24px;min-height:150px;display:flex;align-items:center;
+  color:#fff;background-image:linear-gradient(135deg,var(--hero-from) 0%,var(--hero-to) 100%);
+  box-shadow:var(--shadow)}
+header.hero .hero-text{max-width:680px}
+header.hero h1{font-size:1.6rem;margin:0 0 8px;font-weight:800;letter-spacing:-.01em}
+header.hero p{margin:0;color:rgba(255,255,255,.9);font-size:.98rem;max-width:600px}
+.theme-toggle{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.16);color:#fff;
+  font-size:1.15rem;cursor:pointer;backdrop-filter:blur(4px);line-height:1}
+.theme-toggle:hover{background:rgba(255,255,255,.28)}
 
 .tabs{display:flex;gap:8px;margin-bottom:14px}
 .tabs button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
   background:var(--panel);color:var(--ink);font-weight:600;cursor:pointer;font-size:.95rem}
-.tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tabs button.active{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
-.muni-panel{padding:12px 16px;margin-bottom:14px}
-.muni-label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px}
-.combobox{position:relative}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;
+  box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.muni-panel{padding:14px 16px;margin-bottom:14px}
+.muni-label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:8px}
+.muni-row{display:flex;align-items:center;gap:12px}
+.muni-logo{flex:0 0 auto;width:42px;height:42px;border-radius:10px;background:#fff;
+  display:flex;align-items:center;justify-content:center;overflow:hidden;
+  border:1px solid var(--border);box-shadow:0 2px 8px rgba(15,23,42,.12)}
+.muni-logo img{max-width:82%;max-height:82%;object-fit:contain}
+.combobox{position:relative;flex:1}
 .combobox input{width:100%;padding:10px 14px;font-size:1rem;border:1px solid var(--border);
   border-radius:10px;background:var(--bg);color:var(--ink)}
+.combobox input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
 .cb-list{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel);
-  border:1px solid var(--border);border-radius:10px;max-height:280px;overflow-y:auto;
-  box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:10;display:none}
+  border:1px solid var(--border);border-radius:10px;max-height:300px;overflow-y:auto;
+  box-shadow:var(--shadow);z-index:10;display:none}
 .cb-list.open{display:block}
 .cb-option{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer}
 .cb-option:hover{background:var(--accent-soft)}
-.cb-option img{width:28px;height:28px;object-fit:contain;background:#fff;border-radius:6px;
-  padding:2px;border:1px solid var(--border)}
+.cb-option img{width:26px;height:26px;object-fit:contain;background:#fff;border-radius:6px;
+  padding:2px;border:1px solid var(--border);flex:0 0 auto}
 .cb-option span{font-weight:600}
 .cb-empty{padding:10px 12px;color:var(--muted);font-size:.9rem}
 
@@ -63,9 +78,10 @@ header.hero p{margin:0;color:#e6ede8;font-size:.95rem;text-shadow:0 1px 6px rgba
 .searchbar textarea{flex:1;min-width:240px;padding:12px 14px;font-size:1rem;
   border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink);
   font-family:inherit;resize:vertical;min-height:46px}
+.searchbar textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
 button.go{padding:12px 20px;font-size:1rem;border:0;border-radius:10px;cursor:pointer;
-  background:var(--accent);color:#fff;font-weight:700;white-space:nowrap}
-button.go:disabled{opacity:.5;cursor:wait}
+  background:var(--accent);color:var(--on-accent);font-weight:700;white-space:nowrap}
+button.go:disabled{opacity:.45;cursor:not-allowed}
 
 #status{margin:14px 2px;color:var(--muted);font-size:.9rem}
 .answer-box{background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;
@@ -104,9 +120,8 @@ button.go:disabled{opacity:.5;cursor:wait}
 
 @media (max-width:600px){
   .wrap{padding:10px 10px 50px}
-  header.hero{padding:18px;min-height:130px;gap:12px}
-  header.hero .logo-tile{width:52px;height:52px}
-  header.hero h1{font-size:1.2rem}
+  header.hero{padding:18px;min-height:120px}
+  header.hero h1{font-size:1.25rem}
   .searchbar{flex-direction:column}
   button.go{width:100%}
 }
@@ -115,18 +130,21 @@ button.go:disabled{opacity:.5;cursor:wait}
 <body>
 <div class="wrap">
   <header class="hero">
-    <div class="logo-tile" id="hero-logo" style="display:none"><img id="hero-logo-img" alt=""></div>
+    <button class="theme-toggle" id="theme-toggle" title="Wissel licht/donker thema" aria-label="Wissel thema">🌙</button>
     <div class="hero-text">
-      <h1 id="hero-title">Gemeente — slim zoeken</h1>
-      <p id="hero-sub">Stel je vraag in gewone taal en krijg een antwoord met bronvermelding naar de officiële webpagina's en documenten van de gekozen gemeente.</p>
+      <h1>Slimme Gemeente Assistent</h1>
+      <p>Stel uw vraag in gewone taal en krijg een duidelijk antwoord met bronvermelding naar de officiële webpagina's en documenten van uw gemeente.</p>
     </div>
   </header>
 
   <div class="panel muni-panel">
-    <label class="muni-label" for="muni-input">Gemeente</label>
-    <div class="combobox" id="combobox">
-      <input type="text" id="muni-input" placeholder="Zoek een gemeente…" autocomplete="off">
-      <div class="cb-list" id="cb-list"></div>
+    <label class="muni-label" for="muni-input">Kies uw gemeente</label>
+    <div class="muni-row">
+      <div class="muni-logo" id="muni-logo" style="display:none"><img id="muni-logo-img" alt=""></div>
+      <div class="combobox" id="combobox">
+        <input type="text" id="muni-input" placeholder="Zoek uw gemeente…" autocomplete="off">
+        <div class="cb-list" id="cb-list"></div>
+      </div>
     </div>
   </div>
 
@@ -138,7 +156,7 @@ button.go:disabled{opacity:.5;cursor:wait}
   <div class="panel">
     <div class="searchbar">
       <textarea id="q" placeholder="Bijv. 'Wat kost een paspoort en welke documenten heb ik nodig?'"></textarea>
-      <button class="go" id="go">Zoeken</button>
+      <button class="go" id="go" disabled>Zoeken</button>
     </div>
   </div>
 
@@ -168,12 +186,30 @@ const qEl = $('#q'), goEl = $('#go'), statusEl = $('#status'), answerEl = $('#an
       resultsEl = $('#results'), disclaimerEl = $('#disclaimer'),
       tabAsk = $('#tab-ask'), tabSearch = $('#tab-search');
 const muniInput = $('#muni-input'), cbList = $('#cb-list'), combobox = $('#combobox');
-const heroTitle = $('#hero-title'), heroSub = $('#hero-sub'),
-      heroLogo = $('#hero-logo'), heroLogoImg = $('#hero-logo-img');
+const muniLogo = $('#muni-logo'), muniLogoImg = $('#muni-logo-img');
+const themeToggle = $('#theme-toggle');
 let mode = 'ask';
 let municipalities = [];
 let currentSlug = null;
 let currentSiteHost = '';
+
+// ---- theme (light / dark, default: system) ----
+function currentTheme(){
+  const t = localStorage.getItem('theme');
+  if(t === 'light' || t === 'dark') return t;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function applyTheme(t){
+  document.documentElement.dataset.theme = t;
+  themeToggle.textContent = t === 'dark' ? '☀️' : '🌙';
+  themeToggle.title = t === 'dark' ? 'Schakel naar licht thema' : 'Schakel naar donker thema';
+}
+themeToggle.onclick = () => {
+  const t = currentTheme() === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', t);
+  applyTheme(t);
+};
+applyTheme(currentTheme());
 
 function setMode(m){
   mode = m;
@@ -222,15 +258,14 @@ function selectMuni(m){
   if(!m) return;
   currentSlug = m.slug;
   muniInput.value = m.name;
-  heroTitle.textContent = m.name + ' — slim zoeken';
-  heroSub.textContent = 'Stel je vraag in gewone taal en krijg een antwoord met bronvermelding naar de officiële webpagina\'s en documenten van de gemeente ' + (m.muni_name || m.name) + '.';
   if(m.logo){
-    heroLogoImg.src = '/' + m.logo;
-    heroLogo.style.background = m.logo_bg || '#fff';
-    heroLogo.style.display = 'flex';
+    muniLogoImg.src = '/' + m.logo;
+    muniLogo.style.background = m.logo_bg || '#fff';
+    muniLogo.style.display = 'flex';
   } else {
-    heroLogo.style.display = 'none';
+    muniLogo.style.display = 'none';
   }
+  goEl.disabled = false;
   currentSiteHost = (m.website || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 }
 
@@ -241,7 +276,7 @@ async function loadMunicipalities(){
     municipalities = data.municipalities || [];
   }catch(e){ municipalities = []; }
   renderCbOptions(municipalities);
-  if(municipalities.length) selectMuni(municipalities[0]);
+  // No default selection — the user must pick a municipality first.
 }
 
 muniInput.addEventListener('focus', openCb);
@@ -363,6 +398,10 @@ function renderAnswer(answer, error){
 }
 
 async function run(){
+  if(!currentSlug){
+    statusEl.textContent = 'Kies eerst uw gemeente om te kunnen zoeken.';
+    return;
+  }
   const query = qEl.value.trim();
   if(!query) return;
   goEl.disabled = true;
@@ -389,7 +428,7 @@ async function run(){
   } catch(e){
     statusEl.textContent = 'Er ging iets mis: ' + e;
   } finally {
-    goEl.disabled = false;
+    goEl.disabled = !currentSlug;
   }
 }
 goEl.onclick = run;
