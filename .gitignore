@@ -16,5 +16,6 @@ data/*/pdfs/
 data/*/embeddings.npy
 data/*/index.sqlite
 data/*/build_index.log
+data/*/ingest.log
 data/*/crawl/*.log
 data/*/crawl/*state*.json

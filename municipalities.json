@@ -49,5 +49,17 @@
     "start_url": "https://www.vijfheerenlanden.nl/",
     "search_url": "https://www.vijfheerenlanden.nl/zoeken/",
     "cdn_prefix": ""
+  },
+  {
+    "slug": "utrecht",
+    "name": "Utrecht",
+    "enabled": true,
+    "logo": "logos/utrecht.svg",
+    "website": "https://www.utrecht.nl",
+    "start_url": "https://www.utrecht.nl/",
+    "search_url": "https://www.utrecht.nl/over-deze-website/zoeken",
+    "cdn_prefix": "",
+    "product_sitemap": "https://loket.digitaal.utrecht.nl/nl/sitemap.xml",
+    "skip_paths": ["^/nl/?$", "^/nl/producten/?$"]
   }
 ]

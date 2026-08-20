@@ -52,6 +52,7 @@ START_URL = ""          # set by configure()
 SITE_DOMAIN = ""        # set by configure()
 BASE_DOMAIN = ""        # set by configure()
 CDN_UPLOAD_PREFIX = ""  # set by configure()
+PRODUCT_SITEMAP = ""    # set by configure() — Digitaal Loket product catalog
 
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "0"))
 CONCURRENCY = int(os.environ.get("CRAWL_CONCURRENCY", "3"))
@@ -66,7 +67,7 @@ CDN_HOST = "cuatro.sim-cdn.nl"
 def configure(slug: str) -> None:
     """Point all path/scope globals at one municipality's data + site config."""
     global DATA_DIR, PDF_DIR, CRAWL_DIR, DOCS_PATH, STATE_PATH
-    global START_URL, SITE_DOMAIN, BASE_DOMAIN, CDN_UPLOAD_PREFIX
+    global START_URL, SITE_DOMAIN, BASE_DOMAIN, CDN_UPLOAD_PREFIX, PRODUCT_SITEMAP, SKIP_PATHS
     m = muni.get(slug)
     dd = muni.data_dir(slug)
     DATA_DIR = dd
@@ -78,16 +79,29 @@ def configure(slug: str) -> None:
     SITE_DOMAIN = urlparse(START_URL).netloc.split(":")[0]
     BASE_DOMAIN = ".".join(SITE_DOMAIN.split(".")[-2:])
     CDN_UPLOAD_PREFIX = m.get("cdn_prefix", "")
+    PRODUCT_SITEMAP = m.get("product_sitemap", "")
+    SKIP_PATHS = [re.compile(x, re.I) for x in m.get("skip_paths", [])]
 
 SKIP_EXT = re.compile(
     r"\.(jpe?g|png|gif|svg|webp|ico|css|js|zip|rar|7z|gz|tgz|mp3|mp4|m4a|avi|mov|wmv|flv|webm|woff2?|ttf|eot)$",
     re.I,
 )
-SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboard)", re.I)
+SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboard|formulier|afspraak)", re.I)
 # Interactive citizen-portal / appointment / SSO subdomains generate endless
 # parameterised URLs (mijn.<gemeente>.nl, afspraak.<gemeente>.nl, auth/saml).
 # They are navigation forms, not content — exclude the whole host.
-SKIP_HOST = re.compile(r"^(mijn|afspraak|digid|eherkenning|idp|sso|login|account|portal)\d*\.", re.I)
+# Interactive citizen-portal / appointment / SSO subdomains generate endless
+# parameterised URLs (mijn.<gemeente>.nl, afspraak.<gemeente>.nl, auth/saml).
+# They are navigation forms, not content — exclude the whole host.
+# NOTE: `loket` is deliberately NOT here — the Digitaal Loket's `/nl/producten/`
+# product-catalog pages ARE content (seeded from its sitemap, see
+# PRODUCT_SITEMAP); its /formulier/ + /afspraak/ wizard flows are skipped via
+# SKIP_PATH instead.
+SKIP_HOST = re.compile(r"^(mijn|afspraak|formulieren|digitaal|zaak|berichten|open|data|digid|eherkenning|idp|sso|login|account|portal)\d*\.", re.I)
+# Per-municipality path exclusions (e.g. a Digitaal Loket's JS search-hub pages
+# `/nl` and `/nl/producten`, whose filters generate endless trap URLs). Matched
+# against the URL path only; loaded from the registry's `skip_paths` list.
+SKIP_PATHS: list = []
 PDF_PAT = re.compile(r"\.pdf($|[\?#])", re.I)
 MIN_HTML_CHARS = 80
 
@@ -104,6 +118,8 @@ def fits_scope(url: str) -> bool:
     host = p.netloc.split(":")[0].lower()
     path = p.path.lower()
     if SKIP_HOST.match(host):
+        return False
+    if any(rx.match(path) for rx in SKIP_PATHS):
         return False
     if host == SITE_DOMAIN.lower() or host.endswith("." + BASE_DOMAIN.lower()):
         return True
@@ -243,6 +259,32 @@ async def fetch_sitemap_urls(client: httpx.AsyncClient) -> list[str]:
     except Exception:
         pass
     return [canonicalize(strip_fragment(u)) for u in urls if fits_scope(u)]
+
+
+async def fetch_product_sitemap_urls(client: httpx.AsyncClient) -> list[str]:
+    """Seed the Digitaal Loket product-catalog pages (PRODUCT_SITEMAP).
+
+    The loket sitemap lists the product pages PLUS the hub pages `/nl` and
+    `/nl/producten` (a JS search/filter page that generates endless trap URLs).
+    We only keep the deep product pages (>= 3 path segments), never the hubs.
+    """
+    if not PRODUCT_SITEMAP:
+        return []
+    urls: list[str] = []
+    try:
+        r = await client.get(PRODUCT_SITEMAP)
+        if r.status_code != 200:
+            return urls
+        for loc in re.findall(r"<loc>([^<]+)</loc>", r.text):
+            u = canonicalize(strip_fragment(loc))
+            if not fits_scope(u):
+                continue
+            if len([s for s in urlparse(u).path.split("/") if s]) < 3:
+                continue  # drop /nl and /nl/producten hubs
+            urls.append(u)
+    except Exception:
+        pass
+    return urls
 
 
 # ---------------------------------------------------------------- fetchers
@@ -390,6 +432,8 @@ async def crawl():
 
                 enqueue(START_URL)
                 for u in await fetch_sitemap_urls(client):
+                    enqueue(u)
+                for u in await fetch_product_sitemap_urls(client):
                     enqueue(u)
                 for u in restored:  # frontier from a previous run
                     enqueue(u)
