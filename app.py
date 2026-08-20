@@ -18,7 +18,7 @@ import os
 import re
 import sqlite3
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 
 mimetypes.add_type("image/webp", ".webp")
 
@@ -28,21 +28,21 @@ import pymupdf as fitz
 import torch
 from bs4 import BeautifulSoup
 from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from embedder import Embedder
+import muni
 
 BASE = Path(__file__).parent
-DATA_DIR = BASE / "data"
-PDF_DIR = DATA_DIR / "pdfs"
 STATS_DB = BASE / "stats.sqlite"  # outside data/ so re-indexing keeps history
 
 LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://100.64.x.x:8083/v1")
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-oss-120b")
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "none")
 
-app = FastAPI(title="Gemeente IJsselstein zoeken")
+app = FastAPI(title="Gemeenten slim zoeken")
 
 
 @app.middleware("http")
@@ -58,31 +58,48 @@ async def response_headers(request: Request, call_next):
     return response
 
 
-_state: dict = {}
+_state: dict = {"municipalities": {}}
+
+
+def get_muni_state(slug: str) -> dict:
+    st = _state["municipalities"].get(slug)
+    if st is None:
+        raise HTTPException(404, f"unknown municipality: {slug}")
+    return st
+
+
+def resolve_slug(slug: str | None) -> str:
+    return slug or muni.primary_slug()
 
 
 @app.on_event("startup")
 def load_index():
-    db = sqlite3.connect(DATA_DIR / "index.sqlite", check_same_thread=False)
-    db.row_factory = sqlite3.Row
-    emb = np.load(DATA_DIR / "embeddings.npy")
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
-    matrix = torch.from_numpy(emb).to(device)
-    documents = {
-        r["id"]: dict(r) for r in db.execute("SELECT * FROM documents ORDER BY id")
-    }
-    _state.update(
-        db=db, matrix=matrix, device=device,
-        embedder=Embedder(device=device, max_length=1024),
-        documents=documents,
-        pdf_docs={},
-    )
-    print(f"index loaded: {matrix.shape[0]} chunks over {len(documents)} documents on {device}")
+    _state["device"] = device
+    _state["embedder"] = Embedder(device=device, max_length=1024)
+    for slug in muni.enabled_slugs():
+        dd = muni.data_dir(slug)
+        db_path = dd / "index.sqlite"
+        emb_path = dd / "embeddings.npy"
+        if not db_path.exists() or not emb_path.exists():
+            print(f"[{slug}] no index/embeddings yet; skipping (run crawl+ingest+build_index)")
+            continue
+        db = sqlite3.connect(db_path, check_same_thread=False)
+        db.row_factory = sqlite3.Row
+        emb = np.load(emb_path)
+        matrix = torch.from_numpy(emb).to(device)
+        documents = {
+            r["id"]: dict(r) for r in db.execute("SELECT * FROM documents ORDER BY id")
+        }
+        _state["municipalities"][slug] = {
+            "db": db, "matrix": matrix, "documents": documents, "pdf_docs": {},
+        }
+        print(f"[{slug}] index loaded: {matrix.shape[0]} chunks over {len(documents)} documents")
 
 
 # ------------------------------------------------------------------ retrieval
-def chunk_row_to_dict(row: sqlite3.Row, score: float | None = None) -> dict:
-    doc = _state["documents"].get(row["document"], {})
+def chunk_row_to_dict(row: sqlite3.Row, st: dict, slug: str, score: float | None = None) -> dict:
+    doc = st["documents"].get(row["document"], {})
     is_pdf = doc.get("doc_type") == "pdf"
     d = {
         "id": row["id"],
@@ -97,8 +114,8 @@ def chunk_row_to_dict(row: sqlite3.Row, score: float | None = None) -> dict:
     }
     if is_pdf:
         filename = doc.get("filename") or f"{row['document']}.pdf"
-        d["pdf_url"] = f"/pdf/{filename}#page={row['page_start']}"
-        d["image_url"] = f"/pdf-image/{row['id']}"
+        d["pdf_url"] = f"/pdf/{slug}/{filename}#page={row['page_start']}"
+        d["image_url"] = f"/pdf-image/{slug}/{row['id']}"
     else:
         d["pdf_url"] = None
         d["image_url"] = None
@@ -107,9 +124,9 @@ def chunk_row_to_dict(row: sqlite3.Row, score: float | None = None) -> dict:
     return d
 
 
-def retrieve(query: str, top_k: int, document: str | None = None) -> list[dict]:
-    st = _state
-    q = st["embedder"].encode([query]).to(st["device"])
+def retrieve(query: str, top_k: int, document: str | None, slug: str) -> list[dict]:
+    st = get_muni_state(slug)
+    q = _state["embedder"].encode([query]).to(_state["device"])
     scores = (st["matrix"] @ q.T).squeeze(1).float()
     if document:
         mask_ids = {
@@ -126,7 +143,7 @@ def retrieve(query: str, top_k: int, document: str | None = None) -> list[dict]:
         if score < 0:
             continue
         row = st["db"].execute("SELECT * FROM chunks WHERE id=?", (cid,)).fetchone()
-        results.append(chunk_row_to_dict(row, score))
+        results.append(chunk_row_to_dict(row, st, slug, score))
     return results
 
 
@@ -141,13 +158,21 @@ AGENTIC_THRESHOLD = 0.50
 AGENTIC_MAX_RESULTS = 3     # site-search pages to fetch
 AGENTIC_MAX_CHUNKS = 4      # total injected chunks (cap LLM context)
 AGENTIC_CHUNK_CHARS = 1500
-SITE_SEARCH_URL = "https://www.ijsselstein.nl/zoeken"
 AGENTIC_UA = "GemeenteZoek/1.0 (https://gemeente.multicode.nl; agentic-search)"
 AGENTIC_NAV_TAGS = ("header", "nav", "footer", "script", "style", "noscript", "form")
 
 
-def site_search(query: str, max_results: int = AGENTIC_MAX_RESULTS) -> list[dict]:
-    url = f"{SITE_SEARCH_URL}?trefwoord={quote(query)}"
+def _site_host(m: dict) -> tuple[str, str]:
+    """Return (origin, base_domain) for a municipality, e.g.
+    ("https://www.ijsselstein.nl", "ijsselstein.nl")."""
+    host = urlparse(m["website"]).netloc.split(":")[0].lower()
+    return m["website"].rstrip("/"), ".".join(host.split(".")[-2:])
+
+
+def site_search(query: str, m: dict, max_results: int = AGENTIC_MAX_RESULTS) -> list[dict]:
+    search_url = m.get("search_url") or f"{m['website'].rstrip('/')}/zoeken"
+    origin, base_domain = _site_host(m)
+    url = f"{search_url}?trefwoord={quote(query)}"
     try:
         r = httpx.get(url, timeout=20.0, follow_redirects=True,
                       headers={"User-Agent": AGENTIC_UA})
@@ -163,8 +188,8 @@ def site_search(query: str, max_results: int = AGENTIC_MAX_RESULTS) -> list[dict
             continue
         href = a["href"]
         if href.startswith("/"):
-            href = "https://www.ijsselstein.nl" + href
-        if "ijsselstein.nl" not in href:
+            href = origin + href
+        if base_domain not in href:
             continue
         title = a.get_text(" ", strip=True)
         results.append({"title": title, "url": href,
@@ -198,8 +223,8 @@ def chunk_text(text: str, limit: int = AGENTIC_CHUNK_CHARS) -> list[str]:
     return parts
 
 
-async def agentic_fetch(question: str) -> list[dict]:
-    hits = site_search(question)
+async def agentic_fetch(question: str, m: dict) -> list[dict]:
+    hits = site_search(question, m)
     if not hits:
         return []
     sources = []
@@ -297,26 +322,41 @@ class SearchReq(BaseModel):
     query: str
     top_k: int = 20
     document: str | None = None
+    municipality: str | None = None
 
 
 @app.post("/api/search")
 def api_search(req: SearchReq, request: Request):
     if not req.query.strip():
         raise HTTPException(400, "empty query")
+    slug = resolve_slug(req.municipality)
     log_query(request, "search", req.query)
-    return {"results": retrieve(req.query, min(req.top_k, 100), req.document)}
+    return {"results": retrieve(req.query, min(req.top_k, 100), req.document, slug)}
+
+
+@app.get("/api/municipalities")
+def api_municipalities():
+    out = []
+    for slug in _state["municipalities"]:
+        m = muni.get(slug)
+        out.append({"slug": slug, "name": m["name"], "logo": m.get("logo"), "website": m["website"]})
+    return {"municipalities": out}
 
 
 @app.get("/api/documents")
-def api_documents():
-    return {"documents": list(_state["documents"].values())}
+def api_documents(municipality: str | None = None):
+    st = get_muni_state(resolve_slug(municipality))
+    return {"documents": list(st["documents"].values())}
 
 
 # ------------------------------------------------------------------------ RAG
-ANSWER_SYSTEM = """Je bent een digitale assistent van de gemeente IJsselstein. Burgers stellen
+def answer_system(m: dict) -> str:
+    name = m["name"]
+    host = urlparse(m["website"]).netloc
+    return f"""Je bent een digitale assistent van de gemeente {name}. Burgers stellen
 vragen over gemeentelijke diensten, regelingen, procedures en het beleid van
-IJsselstein. Je krijgt genummerde fragmenten uit de officiële website en
-documenten (PDF's) van de gemeente IJsselstein.
+{name}. Je krijgt genummerde fragmenten uit de officiële website en
+documenten (PDF's) van de gemeente {name}.
 
 Beantwoord de vraag uitsluitend op basis van de fragmenten:
 - Geef een praktisch, helder antwoord in het Nederlands van maximaal circa 300
@@ -330,7 +370,7 @@ Beantwoord de vraag uitsluitend op basis van de fragmenten:
 - Als fragmenten elkaar tegenspreken (bijv. een oudere pagina vs. een nieuwere),
   benoem dat en geef bij twijfel de meest recente weer.
 - Staat het antwoord niet in de fragmenten, zeg dat dan expliciet en verwijs de
-  burger naar de website www.ijsselstein.nl of het algemene telefoonnummer —
+  burger naar de website {host} of het algemene telefoonnummer —
   maar verzin dat telefoonnummer niet als het niet in de fragmenten staat.
 - Blijf feitelijk, neutraal en beknopt.
 
@@ -417,6 +457,7 @@ class AskReq(BaseModel):
     document: str | None = None
     history: list[Turn] = []
     known_source_ids: list[int] = []
+    municipality: str | None = None
 
 
 MAX_SOURCES_IN_CONTEXT = 16
@@ -426,18 +467,21 @@ MAX_SOURCES_IN_CONTEXT = 16
 async def api_ask(req: AskReq, request: Request):
     if not req.question.strip():
         raise HTTPException(400, "empty question")
+    slug = resolve_slug(req.municipality)
+    st = get_muni_state(slug)
+    m = muni.get(slug)
     log_query(request, "ask", req.question)
 
     known_sources = []
     if req.known_source_ids:
-        db = _state["db"]
+        db = st["db"]
         for cid in req.known_source_ids:
             row = db.execute("SELECT * FROM chunks WHERE id=?", (cid,)).fetchone()
             if row:
-                known_sources.append(chunk_row_to_dict(row))
+                known_sources.append(chunk_row_to_dict(row, st, slug))
     have = {s["id"] for s in known_sources}
 
-    fresh = retrieve(req.question, min(req.top_k, 40), req.document)
+    fresh = retrieve(req.question, min(req.top_k, 40), req.document, slug)
     new_sources = [s for s in fresh if s["id"] not in have]
 
     agentic_sources: list[dict] = []
@@ -445,7 +489,7 @@ async def api_ask(req: AskReq, request: Request):
     max_score = max((s.get("score", 0.0) for s in fresh), default=0.0)
     if max_score < AGENTIC_THRESHOLD and not req.document and not req.history:
         try:
-            agentic_sources = await agentic_fetch(req.question)
+            agentic_sources = await agentic_fetch(req.question, m)
         except Exception as e:
             print(f"agentic fetch failed: {e}")
         agentic = bool(agentic_sources)
@@ -456,7 +500,7 @@ async def api_ask(req: AskReq, request: Request):
     sources = fit_sources(sources)
 
     excerpts = build_excerpts(sources)
-    messages = [{"role": "system", "content": ANSWER_SYSTEM}]
+    messages = [{"role": "system", "content": answer_system(m)}]
     messages += [{"role": t.role, "content": t.content} for t in req.history]
     messages.append({"role": "user", "content": user_turn(req.question, excerpts)})
 
@@ -493,22 +537,24 @@ MIN_IMAGE_HEIGHT = 100
 CROP_PADDING = 12
 
 
-def get_pdf_doc(filename: str) -> fitz.Document:
-    cache = _state["pdf_docs"]
+def get_pdf_doc(slug: str, filename: str) -> fitz.Document:
+    st = get_muni_state(slug)
+    cache = st["pdf_docs"]
     if filename not in cache:
-        cache[filename] = fitz.open(PDF_DIR / filename)
+        cache[filename] = fitz.open(muni.pdf_dir(slug) / filename)
     return cache[filename]
 
 
-@app.get("/pdf-image/{chunk_id}")
-def pdf_image(chunk_id: int):
-    row = _state["db"].execute("SELECT * FROM chunks WHERE id=?", (chunk_id,)).fetchone()
+@app.get("/pdf-image/{slug}/{chunk_id}")
+def pdf_image(slug: str, chunk_id: int):
+    st = get_muni_state(slug)
+    row = st["db"].execute("SELECT * FROM chunks WHERE id=?", (chunk_id,)).fetchone()
     if not row:
         raise HTTPException(404, "not found")
-    doc_row = _state["documents"].get(row["document"])
+    doc_row = st["documents"].get(row["document"])
     if not doc_row or doc_row.get("doc_type") != "pdf" or not row["page_start"]:
         raise HTTPException(404, "no image for this source")
-    pdf = get_pdf_doc(doc_row["filename"])
+    pdf = get_pdf_doc(slug, doc_row["filename"])
     page = pdf[row["page_start"] - 1]
 
     # Whole-page render (gemeente documents have no clause structure to crop
@@ -522,5 +568,13 @@ def pdf_image(chunk_id: int):
     )
 
 
-app.mount("/pdf", StaticFiles(directory=PDF_DIR), name="pdf")
+@app.get("/pdf/{slug}/{filename}")
+def pdf_file(slug: str, filename: str):
+    filename = Path(filename).name  # strip any path traversal
+    path = muni.pdf_dir(slug) / filename
+    if not path.is_file():
+        raise HTTPException(404, "not found")
+    return FileResponse(path, media_type="application/pdf")
+
+
 app.mount("/", StaticFiles(directory=BASE / "static", html=True), name="static")

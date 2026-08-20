@@ -1,9 +1,9 @@
 """docs.jsonl -> index.sqlite ingestion for the gemeente smart search.
 
-Reads the crawler output (data/crawl/docs.jsonl: one JSON record per document)
-and builds data/index.sqlite with a `documents` table (id, title, url,
-doc_type html|pdf, filename, pages, published_at, site) and a `chunks` table
-(id, document, page_start, page_end, text, bbox_y0, bbox_y1).
+Reads the crawler output (data/<slug>/crawl/docs.jsonl: one JSON record per
+document) and builds data/<slug>/index.sqlite with a `documents` table (id,
+title, url, doc_type html|pdf, filename, pages, published_at, site) and a
+`chunks` table (id, document, page_start, page_end, text, bbox_y0, bbox_y1).
 
 Chunking:
   - HTML documents are chunked by sentence boundaries (~1400 chars). No page
@@ -17,9 +17,16 @@ Deduplication: the crawler can collect the same page under http:// and https://
 (http->https, strip query, strip trailing slash) and a second pass keeps only
 the first record per canonical URL (preferring a pdf-type record's file).
 
+PDFs are resolved by *filename* inside the municipality's own pdfs/ dir (they
+are sha256 content-addressed), so the crawler's stored `source_path` is only a
+hint and the committed *.jsonl stays valid across directory moves.
+
 Embeddings are built separately by build_index.py (needs the GPU); kept out of
 this pass so the parsing/chunking logic can be re-run quickly without the GPU.
+
+Run per municipality: `python3 ingest.py --municipality <slug>`.
 """
+import argparse
 import json
 import re
 import sqlite3
@@ -28,21 +35,11 @@ from urllib.parse import unquote, urlparse
 
 import pymupdf as fitz
 
-BASE = Path(__file__).parent
-DATA_DIR = BASE / "data"
-PDF_DIR = DATA_DIR / "pdfs"
-DOCS_PATH = DATA_DIR / "crawl" / "docs.jsonl"
-DB_PATH = DATA_DIR / "index.sqlite"
+import muni
 
 # All crawl outputs are merged into one index. docs.jsonl = main site
 # (crawl.py), raad_docs.jsonl = council archive (crawl_raad.py),
 # reference_docs.jsonl = curated national-rules summaries (scripts/add_reference.py).
-DOCS_SOURCES = [
-    DOCS_PATH,
-    DATA_DIR / "crawl" / "raad_docs.jsonl",
-    DATA_DIR / "crawl" / "reference_docs.jsonl",
-]
-
 MAX_CHUNK_CHARS = 1400
 MIN_TEXT_CHARS = 40  # drop near-empty chunks
 
@@ -102,16 +99,29 @@ def chunk_pdf(path: Path, doc_id: str) -> list[dict]:
 
 
 def main():
-    sources = [p for p in DOCS_SOURCES if p.exists()]
+    parser = argparse.ArgumentParser()
+    muni.add_muni_arg(parser)
+    args = parser.parse_args()
+
+    dd = muni.data_dir(args.municipality)
+    pdf_dir = dd / "pdfs"
+    db_path = dd / "index.sqlite"
+    docs_sources = [
+        dd / "crawl" / "docs.jsonl",
+        dd / "crawl" / "raad_docs.jsonl",
+        dd / "crawl" / "reference_docs.jsonl",
+    ]
+
+    sources = [p for p in docs_sources if p.exists()]
     if not sources:
         print("no crawl output; run crawl.py / crawl_raad.py first", flush=True)
         return
-    print(f"reading {len(sources)} crawl source(s)", flush=True)
+    print(f"reading {len(sources)} crawl source(s) for {args.municipality}", flush=True)
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    if DB_PATH.exists():
-        DB_PATH.unlink()
-    db = sqlite3.connect(DB_PATH)
+    dd.mkdir(parents=True, exist_ok=True)
+    if db_path.exists():
+        db_path.unlink()
+    db = sqlite3.connect(db_path)
     db.executescript(
         """
         CREATE TABLE documents (
@@ -160,7 +170,7 @@ def main():
         doc_id = d["id"]
         doc_type = d.get("doc_type", "html")
         title = (d.get("title") or "").strip() or urlparse(d["url"]).path.rsplit("/", 1)[-1] or d["url"]
-        title = unquote(title)  # PDF filenames are URL-encoded (Coalitieakkoord%20'Samen...)
+        title = unquote(title)  # PDF filenames are URL-encoded (Coalitieakkoord%20'Samen...')
         if doc_type == "pdf":
             n_pdf += 1
             filename = Path(d.get("source_path", "")).name or f"{doc_id}.pdf"
@@ -169,8 +179,8 @@ def main():
                 (doc_id, title, d["url"], "pdf", filename,
                  d.get("pages"), d.get("published_at"), d.get("site")),
             )
-            src = d.get("source_path")
-            chunks = chunk_pdf(Path(src), doc_id) if src and Path(src).exists() else []
+            src = pdf_dir / filename
+            chunks = chunk_pdf(src, doc_id) if src.exists() else []
         else:
             n_html += 1
             db.execute(
@@ -198,7 +208,7 @@ def main():
     n_docs = db.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
     db.close()
     print(f"done: {n_docs} documents ({n_html} html, {n_pdf} pdf), "
-          f"{total_chunks} chunks -> {DB_PATH}", flush=True)
+          f"{total_chunks} chunks -> {db_path}", flush=True)
 
 
 if __name__ == "__main__":

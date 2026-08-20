@@ -26,6 +26,7 @@ Output: data/crawl/raad_docs.jsonl (one JSON record per doc, same schema as
 crawl.py) and data/crawl/raad_state.json (resume). PDFs go to the shared
 data/pdfs/ dir (sha256 content-addressed, deduped against the main site).
 """
+import argparse
 import asyncio
 import hashlib
 import json
@@ -40,6 +41,8 @@ import trafilatura
 from bs4 import BeautifulSoup
 import fitz  # PyMuPDF
 
+import muni
+
 BASE = Path(__file__).parent
 DATA_DIR = BASE / "data"
 PDF_DIR = DATA_DIR / "pdfs"
@@ -47,9 +50,25 @@ CRAWL_DIR = DATA_DIR / "crawl"
 DOCS_PATH = CRAWL_DIR / "raad_docs.jsonl"
 STATE_PATH = CRAWL_DIR / "raad_state.json"
 
-SITE_DOMAIN = "ijsselstein.raadsinformatie.nl"
-NOTUBIZ_DOMAIN = "ijsselstein.notubiz.nl"
-ALLOWED_HOSTS = {SITE_DOMAIN, NOTUBIZ_DOMAIN}
+SITE_DOMAIN = ""        # set by configure()
+NOTUBIZ_DOMAIN = ""     # set by configure()
+ALLOWED_HOSTS: set[str] = set()
+
+
+def configure(slug: str) -> None:
+    """Point all path/scope globals at one municipality's council-archive config."""
+    global DATA_DIR, PDF_DIR, CRAWL_DIR, DOCS_PATH, STATE_PATH
+    global SITE_DOMAIN, NOTUBIZ_DOMAIN, ALLOWED_HOSTS
+    m = muni.get(slug)
+    dd = muni.data_dir(slug)
+    DATA_DIR = dd
+    PDF_DIR = dd / "pdfs"
+    CRAWL_DIR = dd / "crawl"
+    DOCS_PATH = CRAWL_DIR / "raad_docs.jsonl"
+    STATE_PATH = CRAWL_DIR / "raad_state.json"
+    SITE_DOMAIN = m.get("raad_domain") or ""
+    NOTUBIZ_DOMAIN = m.get("notubiz_domain") or ""
+    ALLOWED_HOSTS = {h for h in (SITE_DOMAIN, NOTUBIZ_DOMAIN) if h}
 
 CONCURRENCY = int(os.environ.get("RAAD_CONCURRENCY", "4"))
 DELAY = float(os.environ.get("RAAD_DELAY", "0.3"))
@@ -344,4 +363,11 @@ async def crawl():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    muni.add_muni_arg(parser)
+    args = parser.parse_args()
+    configure(args.municipality)
+    if not SITE_DOMAIN:
+        print(f"no council archive (raad_domain) configured for {args.municipality}; skipping")
+        raise SystemExit(0)
     asyncio.run(crawl())

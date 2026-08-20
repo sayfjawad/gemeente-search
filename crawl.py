@@ -22,6 +22,7 @@ Env knobs:
   CRAWL_CONCURRENCY  (default 3)
   CRAWL_DELAY        (default 0.4s between requests)
 """
+import argparse
 import asyncio
 import hashlib
 import json
@@ -38,6 +39,8 @@ import urllib.robotparser as robotparser
 from playwright.async_api import async_playwright
 import fitz  # PyMuPDF
 
+import muni
+
 BASE = Path(__file__).parent
 DATA_DIR = BASE / "data"
 PDF_DIR = DATA_DIR / "pdfs"
@@ -45,20 +48,36 @@ CRAWL_DIR = DATA_DIR / "crawl"
 DOCS_PATH = CRAWL_DIR / "docs.jsonl"
 STATE_PATH = CRAWL_DIR / "state.json"
 
-START_URL = os.environ.get("START_URL", "https://www.ijsselstein.nl/")
+START_URL = ""          # set by configure()
+SITE_DOMAIN = ""        # set by configure()
+BASE_DOMAIN = ""        # set by configure()
+CDN_UPLOAD_PREFIX = ""  # set by configure()
+
 MAX_PAGES = int(os.environ.get("MAX_PAGES", "0"))
 CONCURRENCY = int(os.environ.get("CRAWL_CONCURRENCY", "3"))
 DELAY = float(os.environ.get("CRAWL_DELAY", "0.4"))
 USER_AGENT = "GemeenteZoek/1.0 (https://gemeente.multicode.nl; polite crawler)"
 
-SITE_DOMAIN = urlparse(START_URL).netloc.split(":")[0]
-BASE_DOMAIN = ".".join(SITE_DOMAIN.split(".")[-2:])  # e.g. "ijsselstein.nl"
-
 # Documents uploaded to the site live on the SimGroep "Cuatro" CDN, scoped to
-# this municipality's tenant uploads dir. robots.txt there only disallows a
-# few other tenants; ijsselstein13cb44 is open.
+# this municipality's tenant uploads dir (e.g. ijsselstein13cb44).
 CDN_HOST = "cuatro.sim-cdn.nl"
-CDN_UPLOAD_PREFIX = "/ijsselstein13cb44/uploads/"
+
+
+def configure(slug: str) -> None:
+    """Point all path/scope globals at one municipality's data + site config."""
+    global DATA_DIR, PDF_DIR, CRAWL_DIR, DOCS_PATH, STATE_PATH
+    global START_URL, SITE_DOMAIN, BASE_DOMAIN, CDN_UPLOAD_PREFIX
+    m = muni.get(slug)
+    dd = muni.data_dir(slug)
+    DATA_DIR = dd
+    PDF_DIR = dd / "pdfs"
+    CRAWL_DIR = dd / "crawl"
+    DOCS_PATH = CRAWL_DIR / "docs.jsonl"
+    STATE_PATH = CRAWL_DIR / "state.json"
+    START_URL = m.get("start_url") or f"https://www.{slug}.nl/"
+    SITE_DOMAIN = urlparse(START_URL).netloc.split(":")[0]
+    BASE_DOMAIN = ".".join(SITE_DOMAIN.split(".")[-2:])
+    CDN_UPLOAD_PREFIX = m.get("cdn_prefix", "")
 
 SKIP_EXT = re.compile(
     r"\.(jpe?g|png|gif|svg|webp|ico|css|js|zip|rar|7z|gz|tgz|mp3|mp4|m4a|avi|mov|wmv|flv|webm|woff2?|ttf|eot)$",
@@ -429,4 +448,8 @@ async def crawl():
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    muni.add_muni_arg(parser)
+    args = parser.parse_args()
+    configure(args.municipality)
     asyncio.run(crawl())

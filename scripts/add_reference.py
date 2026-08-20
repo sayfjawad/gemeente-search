@@ -11,13 +11,16 @@ plaatsen?") be answered with the concrete rules.
 Written as a normal doc record so ingest.py / build_index.py treat it like any
 other page (chunked + embedded). Re-run any time to (re)generate the file.
 """
+import argparse
 import hashlib
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-BASE = Path(__file__).parent.parent
-OUT = BASE / "data" / "crawl" / "reference_docs.jsonl"
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import muni
 
 REFERENCE_TEXTS = [
     {
@@ -76,9 +79,13 @@ REFERENCE_TEXTS = [
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    muni.add_muni_arg(parser)
+    args = parser.parse_args()
+    out = muni.data_dir(args.municipality) / "crawl" / "reference_docs.jsonl"
     now = datetime.now(timezone.utc).isoformat()
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUT, "w", encoding="utf-8") as f:
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with open(out, "w", encoding="utf-8") as f:
         for r in REFERENCE_TEXTS:
             text = r["text"].strip()
             doc = {
@@ -95,7 +102,7 @@ def main():
                 "site": "reference",
             }
             f.write(json.dumps(doc, ensure_ascii=False) + "\n")
-    print(f"wrote {len(REFERENCE_TEXTS)} reference doc(s) -> {OUT}")
+    print(f"wrote {len(REFERENCE_TEXTS)} reference doc(s) -> {out}")
 
 
 if __name__ == "__main__":

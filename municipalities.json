@@ -1,0 +1,14 @@
+[
+  {
+    "slug": "ijsselstein",
+    "name": "IJsselstein",
+    "enabled": true,
+    "logo": "logos/ijsselstein.png",
+    "website": "https://www.ijsselstein.nl",
+    "start_url": "https://www.ijsselstein.nl/",
+    "search_url": "https://www.ijsselstein.nl/zoeken",
+    "cdn_prefix": "/ijsselstein13cb44/uploads/",
+    "raad_domain": "ijsselstein.raadsinformatie.nl",
+    "notubiz_domain": "ijsselstein.notubiz.nl"
+  }
+]

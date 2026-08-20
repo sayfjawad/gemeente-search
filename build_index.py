@@ -3,25 +3,30 @@
 Same shape convention as wilders-search/build_index.py: row i of the
 (n_chunks, 1024) fp16 array is the embedding for chunks.id == i (chunk ids
 are assigned contiguously by ingest.py, so this holds by construction).
+
+Run per municipality: `python3 build_index.py --municipality <slug>`.
 """
+import argparse
 import sqlite3
 import time
-from pathlib import Path
 
 import numpy as np
 import torch
 
 from embedder import DIM, Embedder
-
-BASE = Path(__file__).parent
-DB_PATH = BASE / "data" / "index.sqlite"
-EMB_PATH = BASE / "data" / "embeddings.npy"
+import muni
 
 TOKEN_BUDGET = 16384
 
 
 def main():
-    db = sqlite3.connect(DB_PATH)
+    parser = argparse.ArgumentParser()
+    muni.add_muni_arg(parser)
+    args = parser.parse_args()
+    db_path = muni.data_dir(args.municipality) / "index.sqlite"
+    emb_path = muni.data_dir(args.municipality) / "embeddings.npy"
+
+    db = sqlite3.connect(db_path)
     rows = db.execute("SELECT id, text FROM chunks ORDER BY id").fetchall()
     db.close()
     n = len(rows)
@@ -66,8 +71,8 @@ def main():
         batch_max_tok = new_max
     flush()
 
-    np.save(EMB_PATH, emb)
-    print(f"done in {time.time()-t0:.0f}s -> {EMB_PATH}", flush=True)
+    np.save(emb_path, emb)
+    print(f"done in {time.time()-t0:.0f}s -> {emb_path}", flush=True)
 
 
 if __name__ == "__main__":

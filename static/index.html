@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Gemeente IJsselstein — slim zoeken</title>
+<title>Gemeenten — slim zoeken</title>
 <style>
 :root{
   --bg:#f4f5f7; --panel:#ffffff; --ink:#1e2430; --muted:#68707f;
@@ -21,19 +21,18 @@ body{margin:0;background:var(--bg);color:var(--ink);
 .wrap{max-width:920px;margin:0 auto;padding:16px 16px 60px}
 
 header.hero{position:relative;border-radius:16px;overflow:hidden;margin-bottom:20px;
-  border:1px solid var(--border);color:#f5f6fa;padding:28px;
-  min-height:190px;display:flex;align-items:flex-end;
+  border:1px solid var(--border);color:#f5f6fa;padding:24px;
+  min-height:150px;display:flex;align-items:center;gap:18px;
   background-color:#0a3d2e;
-  background-image:
-    linear-gradient(150deg,
+  background-image:linear-gradient(150deg,
       rgba(7,40,30,.95) 0%,
       rgba(11,64,47,.88) 40%,
       rgba(15,107,79,.58) 74%,
-      rgba(18,121,79,.30) 100%),
-    url('/logo_ijsselstein_rgb.png');
-  background-size:auto, auto 88%;
-  background-position:center, 72% 55%;
-  background-repeat:no-repeat, no-repeat}
+      rgba(18,121,79,.30) 100%)}
+header.hero .logo-tile{position:relative;z-index:1;flex:0 0 auto;width:64px;height:64px;
+  border-radius:14px;background:#fff;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,.35)}
+header.hero .logo-tile img{max-width:84%;max-height:84%;object-fit:contain}
 header.hero .hero-text{position:relative;z-index:1;max-width:680px}
 header.hero h1{font-size:1.5rem;margin:0 0 6px;text-shadow:0 2px 10px rgba(0,0,0,.45)}
 header.hero p{margin:0;color:#e6ede8;font-size:.95rem;text-shadow:0 1px 6px rgba(0,0,0,.4)}
@@ -44,6 +43,22 @@ header.hero p{margin:0;color:#e6ede8;font-size:.95rem;text-shadow:0 1px 6px rgba
 .tabs button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}
+.muni-panel{padding:12px 16px;margin-bottom:14px}
+.muni-label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:6px}
+.combobox{position:relative}
+.combobox input{width:100%;padding:10px 14px;font-size:1rem;border:1px solid var(--border);
+  border-radius:10px;background:var(--bg);color:var(--ink)}
+.cb-list{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel);
+  border:1px solid var(--border);border-radius:10px;max-height:280px;overflow-y:auto;
+  box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:10;display:none}
+.cb-list.open{display:block}
+.cb-option{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer}
+.cb-option:hover{background:var(--accent-soft)}
+.cb-option img{width:28px;height:28px;object-fit:contain;background:#fff;border-radius:6px;
+  padding:2px;border:1px solid var(--border)}
+.cb-option span{font-weight:600}
+.cb-empty{padding:10px 12px;color:var(--muted);font-size:.9rem}
+
 .searchbar{display:flex;gap:8px;flex-wrap:wrap}
 .searchbar textarea{flex:1;min-width:240px;padding:12px 14px;font-size:1rem;
   border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink);
@@ -62,6 +77,10 @@ button.go:disabled{opacity:.5;cursor:wait}
 .answer-box ul,.answer-box ol{margin:0 0 10px;padding-inline-start:22px}
 .answer-box li{margin:2px 0}
 .answer-box strong{color:var(--ink)}
+
+.disclaimer{display:none;background:var(--panel);border:1px solid var(--warn);
+  border-radius:12px;padding:12px 16px;margin:14px 0;font-size:.85rem;color:var(--muted)}
+.disclaimer strong{color:var(--warn)}
 
 .card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
   padding:12px 14px;margin-bottom:10px;scroll-margin-top:14px}
@@ -85,8 +104,9 @@ button.go:disabled{opacity:.5;cursor:wait}
 
 @media (max-width:600px){
   .wrap{padding:10px 10px 50px}
-  header.hero{padding:18px;min-height:150px}
-  header.hero h1{font-size:1.25rem}
+  header.hero{padding:18px;min-height:130px;gap:12px}
+  header.hero .logo-tile{width:52px;height:52px}
+  header.hero h1{font-size:1.2rem}
   .searchbar{flex-direction:column}
   button.go{width:100%}
 }
@@ -95,11 +115,20 @@ button.go:disabled{opacity:.5;cursor:wait}
 <body>
 <div class="wrap">
   <header class="hero">
+    <div class="logo-tile" id="hero-logo" style="display:none"><img id="hero-logo-img" alt=""></div>
     <div class="hero-text">
-      <h1>Gemeente IJsselstein — slim zoeken</h1>
-      <p>Stel je vraag in gewone taal en krijg een antwoord met bronvermelding naar de officiële webpagina's en documenten van de gemeente IJsselstein.</p>
+      <h1 id="hero-title">Gemeente — slim zoeken</h1>
+      <p id="hero-sub">Stel je vraag in gewone taal en krijg een antwoord met bronvermelding naar de officiële webpagina's en documenten van de gekozen gemeente.</p>
     </div>
   </header>
+
+  <div class="panel muni-panel">
+    <label class="muni-label" for="muni-input">Gemeente</label>
+    <div class="combobox" id="combobox">
+      <input type="text" id="muni-input" placeholder="Zoek een gemeente…" autocomplete="off">
+      <div class="cb-list" id="cb-list"></div>
+    </div>
+  </div>
 
   <div class="tabs">
     <button id="tab-ask" class="active">Vraag stellen</button>
@@ -115,19 +144,36 @@ button.go:disabled{opacity:.5;cursor:wait}
 
   <div id="status"></div>
   <div id="answer"></div>
+  <div class="disclaimer" id="disclaimer">
+    Deze zoekfunctie gebruikt <strong>kunstmatige intelligentie (AI)</strong>.
+    Antwoorden worden automatisch gegenereerd op basis van gecrawlde (automatisch
+    verzamelde) informatie van de website en documenten van de gekozen gemeente.
+    AI is niet-deterministisch: antwoorden kunnen onjuist, onvolledig of verouderd
+    zijn en hebben <strong>geen juridische status</strong>. Aan de getoonde
+    informatie kunnen geen rechten worden ontleend. Controleer altijd de geciteerde
+    bron of de officiële website van de gemeente.
+  </div>
   <div id="results"></div>
 
   <div class="about">
-    Antwoorden worden gegenereerd op basis van de website en documenten van de gemeente IJsselstein en kunnen fouten bevatten —
-    controleer altijd de geciteerde bron voordat je op het antwoord afgaat.
+    Deze tool doorzoekt automatisch verzamelde (gecrawlde) webpagina's en documenten van de
+    gekozen gemeente. Resultaten kunnen onvolledig of verouderd zijn; raadpleeg bij twijfel
+    altijd de officiële website van de gemeente.
   </div>
 </div>
 
 <script>
 const $ = sel => document.querySelector(sel);
 const qEl = $('#q'), goEl = $('#go'), statusEl = $('#status'), answerEl = $('#answer'),
-      resultsEl = $('#results'), tabAsk = $('#tab-ask'), tabSearch = $('#tab-search');
+      resultsEl = $('#results'), disclaimerEl = $('#disclaimer'),
+      tabAsk = $('#tab-ask'), tabSearch = $('#tab-search');
+const muniInput = $('#muni-input'), cbList = $('#cb-list'), combobox = $('#combobox');
+const heroTitle = $('#hero-title'), heroSub = $('#hero-sub'),
+      heroLogo = $('#hero-logo'), heroLogoImg = $('#hero-logo-img');
 let mode = 'ask';
+let municipalities = [];
+let currentSlug = null;
+let currentSiteHost = '';
 
 function setMode(m){
   mode = m;
@@ -145,6 +191,68 @@ setMode('ask');
 function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+// ---- municipality combobox ----
+function renderCbOptions(list){
+  cbList.innerHTML = '';
+  if(!list.length){
+    cbList.innerHTML = '<div class="cb-empty">Geen gemeenten beschikbaar</div>';
+    return;
+  }
+  list.forEach(m => {
+    const opt = document.createElement('div');
+    opt.className = 'cb-option';
+    opt.dataset.slug = m.slug;
+    opt.innerHTML = (m.logo ? `<img src="/${m.logo}" alt="">` : '') + `<span>${escapeHtml(m.name)}</span>`;
+    opt.onclick = () => { selectMuni(m.slug); closeCb(); };
+    cbList.appendChild(opt);
+  });
+}
+
+function openCb(){ cbList.classList.add('open'); filterCb(muniInput.value); }
+function closeCb(){ cbList.classList.remove('open'); }
+function filterCb(q){
+  q = q.trim().toLowerCase();
+  cbList.querySelectorAll('.cb-option').forEach(o => {
+    o.style.display = o.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
+
+function selectMuni(slug){
+  const m = municipalities.find(x => x.slug === slug);
+  if(!m) return;
+  currentSlug = m.slug;
+  muniInput.value = m.name;
+  heroTitle.textContent = m.name + ' — slim zoeken';
+  heroSub.textContent = 'Stel je vraag in gewone taal en krijg een antwoord met bronvermelding naar de officiële webpagina\'s en documenten van de gemeente ' + m.name + '.';
+  if(m.logo){
+    heroLogoImg.src = '/' + m.logo;
+    heroLogo.style.display = 'flex';
+  } else {
+    heroLogo.style.display = 'none';
+  }
+  currentSiteHost = (m.website || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+}
+
+async function loadMunicipalities(){
+  try{
+    const res = await fetch('/api/municipalities');
+    const data = await res.json();
+    municipalities = data.municipalities || [];
+  }catch(e){ municipalities = []; }
+  renderCbOptions(municipalities);
+  if(municipalities.length) selectMuni(municipalities[0].slug);
+}
+
+muniInput.addEventListener('focus', openCb);
+muniInput.addEventListener('input', openCb);
+muniInput.addEventListener('keydown', e => {
+  if(e.key === 'Enter'){
+    const first = cbList.querySelector('.cb-option:not([style*="display: none"])');
+    if(first) first.click();
+  }
+});
+document.addEventListener('click', e => { if(!combobox.contains(e.target)) closeCb(); });
 
 // ---- lightweight markdown (bold, bullet/numbered lists) ----
 function renderMarkdownBlocks(text){
@@ -264,19 +372,20 @@ async function run(){
   try{
     if(mode === 'search'){
       const res = await fetch('/api/search', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({query, top_k: 20})});
+        body: JSON.stringify({query, top_k: 20, municipality: currentSlug})});
       const data = await res.json();
       statusEl.textContent = `${data.results.length} resultaten`;
       renderSources(data.results);
     } else {
       const res = await fetch('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({question: query, top_k: 8})});
+        body: JSON.stringify({question: query, top_k: 8, municipality: currentSlug})});
       const data = await res.json();
       statusEl.textContent = `${data.sources.length} bronnen geraadpleegd` +
-        (data.agentic ? ' (live opgehaald van ijsselstein.nl)' : '');
+        (data.agentic ? ` (live opgehaald van ${currentSiteHost})` : '');
       renderAnswer(data.answer, data.error);
       renderSources(data.sources);
     }
+    disclaimerEl.style.display = 'block';
   } catch(e){
     statusEl.textContent = 'Er ging iets mis: ' + e;
   } finally {
@@ -287,6 +396,8 @@ goEl.onclick = run;
 qEl.addEventListener('keydown', e => {
   if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); run(); }
 });
+
+loadMunicipalities();
 </script>
 </body>
 </html>
