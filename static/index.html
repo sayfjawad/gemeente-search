@@ -203,7 +203,7 @@ function renderCbOptions(list){
     const opt = document.createElement('div');
     opt.className = 'cb-option';
     opt.dataset.slug = m.slug;
-    opt.innerHTML = (m.logo ? `<img src="/${m.logo}" alt="">` : '') + `<span>${escapeHtml(m.name)}</span>`;
+    opt.innerHTML = (m.logo ? `<img src="/${m.logo}" alt=""${m.logo_bg ? ` style="background:${m.logo_bg}"` : ''}>` : '') + `<span>${escapeHtml(m.name)}</span>`;
     opt.onclick = () => { selectMuni(m.slug); closeCb(); };
     cbList.appendChild(opt);
   });
@@ -227,6 +227,7 @@ function selectMuni(slug){
   heroSub.textContent = 'Stel je vraag in gewone taal en krijg een antwoord met bronvermelding naar de officiële webpagina\'s en documenten van de gemeente ' + m.name + '.';
   if(m.logo){
     heroLogoImg.src = '/' + m.logo;
+    heroLogo.style.background = m.logo_bg || '#fff';
     heroLogo.style.display = 'flex';
   } else {
     heroLogo.style.display = 'none';

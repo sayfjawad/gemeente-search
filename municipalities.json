@@ -10,5 +10,16 @@
     "cdn_prefix": "/ijsselstein13cb44/uploads/",
     "raad_domain": "ijsselstein.raadsinformatie.nl",
     "notubiz_domain": "ijsselstein.notubiz.nl"
+  },
+  {
+    "slug": "nieuwegein",
+    "name": "Nieuwegein",
+    "enabled": true,
+    "logo": "logos/nieuwegein.svg",
+    "logo_bg": "#F06F74",
+    "website": "https://www.nieuwegein.nl",
+    "start_url": "https://www.nieuwegein.nl/",
+    "search_url": "https://www.nieuwegein.nl/zoeken",
+    "cdn_prefix": ""
   }
 ]

@@ -83,7 +83,7 @@ SKIP_EXT = re.compile(
     r"\.(jpe?g|png|gif|svg|webp|ico|css|js|zip|rar|7z|gz|tgz|mp3|mp4|m4a|avi|mov|wmv|flv|webm|woff2?|ttf|eot)$",
     re.I,
 )
-SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json)", re.I)
+SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboard)", re.I)
 PDF_PAT = re.compile(r"\.pdf($|[\?#])", re.I)
 MIN_HTML_CHARS = 80
 

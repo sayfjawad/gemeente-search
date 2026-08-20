@@ -339,7 +339,7 @@ def api_municipalities():
     out = []
     for slug in _state["municipalities"]:
         m = muni.get(slug)
-        out.append({"slug": slug, "name": m["name"], "logo": m.get("logo"), "website": m["website"]})
+        out.append({"slug": slug, "name": m["name"], "logo": m.get("logo"), "logo_bg": m.get("logo_bg"), "website": m["website"]})
     return {"municipalities": out}
 
 

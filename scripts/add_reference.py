@@ -82,12 +82,13 @@ def main():
     parser = argparse.ArgumentParser()
     muni.add_muni_arg(parser)
     args = parser.parse_args()
+    name = muni.get(args.municipality)["name"]
     out = muni.data_dir(args.municipality) / "crawl" / "reference_docs.jsonl"
     now = datetime.now(timezone.utc).isoformat()
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
         for r in REFERENCE_TEXTS:
-            text = r["text"].strip()
+            text = r["text"].strip().replace("gemeente IJsselstein", f"gemeente {name}")
             doc = {
                 "id": hashlib.sha1(r["url"].encode()).hexdigest(),
                 "url": r["url"],
