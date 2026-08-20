@@ -204,7 +204,7 @@ function renderCbOptions(list){
     opt.className = 'cb-option';
     opt.dataset.slug = m.slug;
     opt.innerHTML = (m.logo ? `<img src="/${m.logo}" alt=""${m.logo_bg ? ` style="background:${m.logo_bg}"` : ''}>` : '') + `<span>${escapeHtml(m.name)}</span>`;
-    opt.onclick = () => { selectMuni(m.slug); closeCb(); };
+    opt.onclick = () => { selectMuni(m); closeCb(); };
     cbList.appendChild(opt);
   });
 }
@@ -218,13 +218,12 @@ function filterCb(q){
   });
 }
 
-function selectMuni(slug){
-  const m = municipalities.find(x => x.slug === slug);
+function selectMuni(m){
   if(!m) return;
   currentSlug = m.slug;
   muniInput.value = m.name;
   heroTitle.textContent = m.name + ' — slim zoeken';
-  heroSub.textContent = 'Stel je vraag in gewone taal en krijg een antwoord met bronvermelding naar de officiële webpagina\'s en documenten van de gemeente ' + m.name + '.';
+  heroSub.textContent = 'Stel je vraag in gewone taal en krijg een antwoord met bronvermelding naar de officiële webpagina\'s en documenten van de gemeente ' + (m.muni_name || m.name) + '.';
   if(m.logo){
     heroLogoImg.src = '/' + m.logo;
     heroLogo.style.background = m.logo_bg || '#fff';
@@ -242,7 +241,7 @@ async function loadMunicipalities(){
     municipalities = data.municipalities || [];
   }catch(e){ municipalities = []; }
   renderCbOptions(municipalities);
-  if(municipalities.length) selectMuni(municipalities[0].slug);
+  if(municipalities.length) selectMuni(municipalities[0]);
 }
 
 muniInput.addEventListener('focus', openCb);

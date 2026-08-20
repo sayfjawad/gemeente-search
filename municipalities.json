@@ -21,5 +21,33 @@
     "start_url": "https://www.nieuwegein.nl/",
     "search_url": "https://www.nieuwegein.nl/zoeken",
     "cdn_prefix": ""
+  },
+  {
+    "slug": "vijfheerenlanden",
+    "name": "Vijfheerenlanden",
+    "aliases": [
+      "Ameide",
+      "Everdingen",
+      "Hagestein",
+      "Hei- en Boeicop",
+      "Hoef en Haag",
+      "Kedichem",
+      "Leerbroek",
+      "Leerdam",
+      "Lexmond",
+      "Meerkerk",
+      "Nieuwland",
+      "Oosterwijk",
+      "Schoonrewoerd",
+      "Tienhoven aan de Lek",
+      "Vianen",
+      "Zijderveld"
+    ],
+    "enabled": true,
+    "logo": "logos/vijfheerenlanden.svg",
+    "website": "https://www.vijfheerenlanden.nl",
+    "start_url": "https://www.vijfheerenlanden.nl/",
+    "search_url": "https://www.vijfheerenlanden.nl/zoeken/",
+    "cdn_prefix": ""
   }
 ]

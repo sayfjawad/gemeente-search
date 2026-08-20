@@ -84,6 +84,10 @@ SKIP_EXT = re.compile(
     re.I,
 )
 SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboard)", re.I)
+# Interactive citizen-portal / appointment / SSO subdomains generate endless
+# parameterised URLs (mijn.<gemeente>.nl, afspraak.<gemeente>.nl, auth/saml).
+# They are navigation forms, not content — exclude the whole host.
+SKIP_HOST = re.compile(r"^(mijn|afspraak|digid|eherkenning|idp|sso|login|account|portal)\d*\.", re.I)
 PDF_PAT = re.compile(r"\.pdf($|[\?#])", re.I)
 MIN_HTML_CHARS = 80
 
@@ -99,6 +103,8 @@ def fits_scope(url: str) -> bool:
         return False
     host = p.netloc.split(":")[0].lower()
     path = p.path.lower()
+    if SKIP_HOST.match(host):
+        return False
     if host == SITE_DOMAIN.lower() or host.endswith("." + BASE_DOMAIN.lower()):
         return True
     if host == CDN_HOST:

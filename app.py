@@ -339,7 +339,10 @@ def api_municipalities():
     out = []
     for slug in _state["municipalities"]:
         m = muni.get(slug)
-        out.append({"slug": slug, "name": m["name"], "logo": m.get("logo"), "logo_bg": m.get("logo_bg"), "website": m["website"]})
+        base = {"slug": slug, "logo": m.get("logo"), "logo_bg": m.get("logo_bg"), "website": m["website"], "muni_name": m["name"]}
+        out.append({**base, "name": m["name"]})
+        for alias in m.get("aliases", []):
+            out.append({**base, "name": alias})
     return {"municipalities": out}
 
 
