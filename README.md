@@ -1,0 +1,152 @@
+# gemeente-search
+
+Slimme, geciteerde zoekmachine over gemeentelijke websites. Stel een vraag in
+gewone taal en krijg één samenhangend antwoord dat citeert naar de exacte
+bronpagina of PDF-pagina van de gemeente — inclusief een weergave van die
+PDF-pagina, zodat je niet blind hoeft te vertrouwen op een taalmodel dat
+bedragen, termijnen of regels zou kunnen verzinnen.
+
+Live: **gemeente.multicode.nl**
+
+## Waarom dit bestaat
+
+Gemeentelijke informatie staat verspreid over de hoofdsite, losse PDF's
+(verordeningen, beleidsstukken), het productaanbod van het Digitaal Loket, en
+het gemeenteraadsarchief (raadsinformatie.nl). Een burger die wil weten of een
+serre vergunningsvrij is, of een uitkering/vergoeding waar hij recht op heeft,
+moet zelf door al die bronnen heen ploegen. Dit project haalt die bronnen
+gestructureerd binnen (crawlen), maakt ze semantisch doorzoekbaar (RAG), en laat
+een taalmodel er één praktisch, geciteerd antwoord van maken.
+
+## Architectuur
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  Offline: per-gemeente ingestiepijplijn                              │
+│                                                                      │
+│   crawl.py            hoofdsite + CDN-PDF's (Cuatro)                 │
+│   crawl_raad.py       gemeenteraadsarchief (Notubiz/raadsinformatie) │
+│   scripts/add_reference.py  gecureerde landelijke regels             │
+│        │  (elk → data/<slug>/crawl/*.jsonl)                          │
+│        ▼  ingest.py  (dedup + chunking)                              │
+│   data/<slug>/index.sqlite   (documents, chunks)                     │
+│        │  build_index.py  (BGE-M3, GPU, fp16)                        │
+│        ▼                                                             │
+│   data/<slug>/embeddings.npy (n_chunks × 1024, L2-genormaliseerd)    │
+└──────────────────────────────────────────────────────────────────────┘
+
+┌──────────────────────────────────────────────────────────────────────┐
+│  Online: app.py  (FastAPI, :8905, GPU-resident)                      │
+│                                                                      │
+│   POST /api/search ─┐                                                │
+│   POST /api/ask ────┼─▶ retrieve(): cosine sim over embeddings.npy   │
+│                     │   + (zwakke match) agentic fallback →          │
+│                     │     site-eigen zoekmachine                     │
+│                     │   + GPT-OSS-120B (llama.cpp op de gx10-node)   │
+│   GET /pdf-image/…  ┼─▶ PyMuPDF pagina-render → PNG                  │
+│   GET /pdf/…        ┴─▶ volledige bron-PDF (Range/#page=N)           │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+Zelfde patroon als de andere GPU-backed zoekapplicaties in dit account
+(`wilders-search`, `lift-normen-search`, `slimme-archief-zoeker`): systemd
+`--user`-unit op de GPU-machine, nginx-reverse-proxy naar de Tailscale-IP op een
+aparte edge-VPS, certbot voor TLS. Het taalmodel draait apart van de app: op de
+gx10-node via llama.cpp.
+
+Volledige onderbouwing van elke keuze staat in
+[docs/architecture/](docs/architecture/README.md) — inclusief de decision
+records.
+
+## Features
+
+- **Meerdere gemeenten in één service**: IJsselstein, Nieuwegein,
+  Vijfheerenlanden, Utrecht en Houten zijn live; de index per gemeente is
+  gescheiden, de dropdown kiest de gemeente. Onboarden van een nieuwe gemeente
+  is één register-entry plus een pipeline-run (zie
+  [ADR-001](docs/architecture/07-decision-records/ADR-001-multi-gemeente-register.md)).
+- **Vraag stellen** (`/api/ask`): RAG-antwoord in het Nederlands met
+  `[n]`-citaten die verwijzen naar de genummerde bronnen, per bewering.
+- **Agentic fallback**: als semantische retrieval zwak scoort (onder een
+  drempel), valt het systeem terug op de eigen zoekmachine van de gemeentesite
+  (`/zoeken?trefwoord=...`) en haalt het de top-pagina's live op — "staat het
+  niet in de index, haal het op" (zie
+  [ADR-005](docs/architecture/07-decision-records/ADR-005-agentic-fallback.md)).
+- **PDF-pagina-afbeeldingen**: elke PDF-bron toont de bijbehorende pagina als
+  PNG (`/pdf-image/{slug}/{chunk_id}`), on-demand gerenderd vanuit de bron-PDF.
+- **Zoeken** (`/api/search`): kale semantische zoekresultaten, optioneel te
+  filteren op één document, zonder LLM-antwoord.
+- **Gebruiksstatistieken** (`/api/statistics`): aantal queries per modus,
+  unieke IP's, per dag — opgeslagen in `stats.sqlite` (buiten `data/`, zodat
+  her-indexeren de historie niet wist).
+- Responsive UI (`static/index.html`, geen build-stap — één self-contained
+  HTML-bestand met light/dark-theme).
+
+## API
+
+| endpoint | methode | omschrijving |
+|---|---|---|
+| `/api/search` | POST | semantisch zoeken, `{query, top_k, document?, municipality?}` |
+| `/api/ask` | POST | RAG-antwoord, `{question, top_k, document?, history?, known_source_ids?, municipality?}` |
+| `/api/municipalities` | GET | lijst van ingeschakelde gemeenten (slug, naam, logo) |
+| `/api/documents` | GET | lijst van geïndexeerde documenten per gemeente |
+| `/api/statistics` | GET | gebruiksstatistieken (queries, unieke IP's, per dag) |
+| `/pdf-image/{slug}/{chunk_id}` | GET | PNG-render van de PDF-pagina van die chunk |
+| `/pdf/{slug}/{filename}` | GET | volledige bron-PDF (Range-requests, `#page=N`) |
+| `/` | GET | de frontend (`static/index.html`) |
+
+## Lokaal draaien
+
+Vereist: Python 3.10+, een GPU (of geduld op CPU), en bereikbaarheid van de
+gx10-node voor het taalmodel (`LLM_BASE_URL`, standaard
+`http://100.64.x.x:8083/v1`). De runtime-venv wordt gedeeld met
+`lift-normen-search` (`/data/git/lift-normen-search/.venv`, een bewezen
+ML-stack met torch/transformers/pymupdf/fastapi).
+
+```bash
+# 1. venv + deps (of symlink naar de gedeelde venv)
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/pip install playwright && .venv/bin/playwright install chromium
+
+# 2. één gemeente onboarden (register-entry staat al in municipalities.json):
+.venv/bin/python3 crawl.py --municipality ijsselstein        # hoofdsite + PDF's
+.venv/bin/python3 crawl_raad.py --municipality ijsselstein   # raadsarchief (optioneel)
+.venv/bin/python3 scripts/add_reference.py --municipality ijsselstein
+.venv/bin/python3 ingest.py --municipality ijsselstein       # → index.sqlite
+.venv/bin/python3 build_index.py --municipality ijsselstein  # → embeddings.npy (GPU)
+
+# 3. draaien
+cp .env.example .env    # vul LLM_BASE_URL in indien nodig
+.venv/bin/python3 -m uvicorn app:app --port 8905
+```
+
+Een volledige onboarding draait via
+[`scripts/onboard_barendrecht.sh`](scripts/onboard_barendrecht.sh) (detached,
+met e-mail per mijlpaal).
+
+## Over de brondata
+
+De zware afgeleide data zit bewust **niet** in deze repo (zie
+[ADR-009](docs/architecture/07-decision-records/ADR-009-brondata-niet-in-git.md)):
+`data/<slug>/pdfs/` (de gedownloade PDF's, per gemeente 0,1–8 GB),
+`index.sqlite`, en `embeddings.npy`. De crawl-*tekst* zelf
+(`data/<slug>/crawl/*.jsonl`) wél — die is klein genoeg om te committen en
+maakt de index herbouwbaar. De brondata is openbare gemeente-informatie, dus er
+is geen auteursrechtelijk bezwaar, alleen een praktisch: grootte en
+her-crawlbaarheid.
+
+## Documentatie
+
+De volledige architectuur staat in `docs/architecture/`, gestructureerd met
+dezelfde **nummering als `odp-architecture`** (00–13):
+
+- [docs/architecture/](docs/architecture/README.md) — index & navigatietabel
+- [00-overview](docs/architecture/00-overview/) — context, visie, scope, glossary
+- [01-principes](docs/architecture/01-architecture-principles/) — drivers, constraints, invloeden uit andere projecten
+- [02-systeemcontext](docs/architecture/02-system-context/) — contextdiagram, externe systemen
+- [03-platforms](docs/architecture/03-platforms/) — de applicatie, de LLM-node (GPT-OSS-120B), embeddings & retrieval
+- [05-cross-cutting concerns](docs/architecture/05-cross-cutting-concerns/) — RAG & contextvenster, bronvermelding, kosten & schaling
+- [07-decision-records](docs/architecture/07-decision-records/) — ADR's: waarom elke keuze is gemaakt zoals hij is gemaakt
+- [11-roadmap](docs/architecture/11-roadmap/) — verbeteringen + schaling naar heel Nederland (GB-inschatting)
+- [12-diagrams](docs/architecture/12-diagrams/) — PlantUML-bronnen

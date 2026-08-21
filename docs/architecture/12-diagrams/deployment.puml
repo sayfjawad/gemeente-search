@@ -1,0 +1,27 @@
+@startuml deployment
+!include <C4/C4_Deployment>
+
+title Deployment-topologie
+
+Deployment_Node(internet, "Internet", "publiek") {
+  Deployment_Node(vps, "Edge-VPS", "nginx + certbot") {
+    Container(nginx, "nginx", "TLS-terminatie + reverse proxy")
+  }
+}
+
+Deployment_Node(tailscale, "Tailscale", "mesh-VPN 100.x.y.z") {
+  Deployment_Node(gpu, "GPU-node (Z8)", "2x Tesla V100") {
+    Container(svc, "gemeente-search.service", "FastAPI :8905 (systemd --user)")
+    Container(embed, "BGE-M3", "embedding (offline)")
+  }
+  Deployment_Node(gx10, "gx10-node", "GB10 Grace Blackwell 128GB") {
+    Container(llamacpp, "llama.cpp", "GPT-OSS-120B :8083")
+  }
+}
+
+Rel(internet, nginx, "HTTPS")
+Rel(nginx, svc, "HTTP :8905")
+Rel(svc, llamacpp, "HTTP :8083 /v1")
+Rel(svc, embed, "GPU (offline pijplijn)")
+
+@enduml

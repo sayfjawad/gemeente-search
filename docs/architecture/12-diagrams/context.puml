@@ -1,0 +1,21 @@
+@startuml context
+!include <C4/C4_Context>
+
+Person(burger, "Burger", "stelt een gemeentelijke vraag in de browser")
+
+System(gemeente_search, "gemeente-search", "FastAPI-service op de GPU-node, poort 8905")
+
+System_Ext(llm, "gx10-node (llama.cpp)", "serveert GPT-OSS-120B via /v1")
+System_Ext(edge, "Edge-VPS (nginx)", "TLS-terminatie + reverse proxy")
+System_Ext(gemeente_site, "Gemeentewebsite + CDN", "HTML + PDF's")
+System_Ext(raad, "raadsinformatie.nl (Notubiz)", "raadsarchief")
+System_Ext(smtp, "TransIP SMTP", "e-mailnotificaties")
+
+Rel(burger, edge, "HTTPS", "")
+Rel(edge, gemeente_search, "HTTP (Tailscale)", "")
+Rel(gemeente_search, llm, "HTTP /v1/chat/completions", "")
+Rel(gemeente_search, gemeente_site, "crawlt", "offline pijplijn")
+Rel(gemeente_search, raad, "crawlt", "offline pijplijn")
+Rel(gemeente_search, smtp, "notificaties", "onboarding")
+
+@enduml

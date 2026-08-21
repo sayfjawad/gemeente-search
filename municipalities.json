@@ -71,5 +71,18 @@
     "start_url": "https://www.houten.nl/",
     "search_url": "https://www.houten.nl/zoeken",
     "cdn_prefix": ""
+  },
+  {
+    "slug": "barendrecht",
+    "name": "Barendrecht",
+    "enabled": true,
+    "logo": "logos/barendrecht.png",
+    "website": "https://www.barendrecht.nl",
+    "start_url": "https://www.barendrecht.nl/",
+    "search_url": "https://www.barendrecht.nl/zoeken/",
+    "cdn_prefix": "",
+    "skip_paths": ["^/feed/", "^/category/", "^/tag/", "^/author/", ".*/page/\\d+"],
+    "raad_domain": "barendrecht.raadsinformatie.nl",
+    "notubiz_domain": "barendrecht.notubiz.nl"
   }
 ]

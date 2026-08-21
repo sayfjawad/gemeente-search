@@ -1,0 +1,25 @@
+@startuml query-flow
+!include <C4/C4_Component>
+
+title Query-flow (online request/response)
+
+[Burger] --> (FastAPI app.py) : /api/ask {vraag, slug}
+
+(app.py) --> (embedder.py) : embed(vraag) op GPU (BGE-M3)
+(embedder.py) --> (app.py) : query-embedding
+
+(app.py) --> (embeddings.npy) : matrix @ q.T (cosine)
+(embeddings.npy) --> (app.py) : top-N chunks
+
+(app.py) --> (agentic fallback) : als score < 0.50
+(agentic fallback) --> [site-zoekmachine] : query
+[site-zoekmachine] --> (agentic fallback) : top-pagina's
+(agentic fallback) --> (app.py) : extra chunks
+
+(app.py) --> (gx10 llama.cpp) : prompt = system + bronnen (<=8200 tekens, <=16)
+(gx10 llama.cpp) --> (app.py) : antwoord met [n]-citaten
+
+(app.py) --> (static/index.html) : antwoord + bronkaarten
+(static/index.html) --> (app.py) : /pdf-image/{slug}/{chunk_id} (PDF-pagina's)
+
+@enduml

@@ -1,0 +1,22 @@
+@startuml data-pipeline
+!include <C4/C4_Component>
+
+title Datapijplijn (offline batch)
+
+[Gemeentesite + CDN] --> (crawl.py) : sitemap BFS + Playwright + Trafilatura
+[raadsinformatie.nl] --> (crawl_raad.py) : ris2 (Notubiz)
+[Curated referenties] --> (scripts/add_reference.py)
+
+(crawl.py) --> data/<slug>/crawl/docs.jsonl
+(crawl_raad.py) --> data/<slug>/crawl/raad_docs.jsonl
+(scripts/add_reference.py) --> data/<slug>/crawl/reference_docs.jsonl
+
+data/<slug>/crawl/docs.jsonl --> (ingest.py) : dedup op canonical URL, chunking
+data/<slug>/crawl/raad_docs.jsonl --> (ingest.py)
+data/<slug>/crawl/reference_docs.jsonl --> (ingest.py)
+
+(ingest.py) --> data/<slug>/index.sqlite : documents + chunks
+data/<slug>/index.sqlite --> (build_index.py) : BGE-M3 (GPU)
+(build_index.py) --> data/<slug>/embeddings.npy : fp16, n_chunks x 1024
+
+@enduml
