@@ -38,7 +38,7 @@ import muni
 BASE = Path(__file__).parent
 STATS_DB = BASE / "stats.sqlite"  # outside data/ so re-indexing keeps history
 
-LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://100.64.x.x:8083/v1")
+LLM_BASE_URL = os.environ.get("LLM_BASE_URL", "http://localhost:8083/v1")
 LLM_MODEL = os.environ.get("LLM_MODEL", "gpt-oss-120b")
 LLM_API_KEY = os.environ.get("LLM_API_KEY", "none")
 

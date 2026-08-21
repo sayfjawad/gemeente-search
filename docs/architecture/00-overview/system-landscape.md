@@ -17,7 +17,7 @@ en infrastructuur delen.
 
 ## Gedeelde infrastructuur
 
-- **GPU-node (Z8)** — Z8, 2× Tesla V100; draait de systemd
+- **GPU-node (Z8)** — 2× Tesla V100; draait de systemd
   `--user`-units (poorten 8902–8905) en de BGE-M3-embeddings.
 - **Gedeelde venv** — `/data/git/lift-normen-search/.venv` (torch,
   transformers, pymupdf, fastapi), door de zoekapps hergebruikt.

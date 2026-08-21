@@ -5,7 +5,7 @@ zoekapps op dit account. Deze gedeeldheid is een bewuste keuze
 ([D5 — hergebruik](../01-architecture-principles/architectural-drivers.md)),
 met als gevolg ook een gedeelde verantwoordelijkheid voor versies en capaciteit.
 
-## GPU-node (Z8, Z8)
+## GPU-node (Z8)
 
 - **Rol**: draait de service (poort 8905, systemd `--user`) én de
   BGE-M3-embedding voor de offline pijplijn.

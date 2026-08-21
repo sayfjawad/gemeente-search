@@ -107,9 +107,9 @@ crawl-, indexeer- en onderhoudsinspanning. Wil je een gemeente laten toevoegen
 ## Lokaal draaien
 
 Vereist: Python 3.10+, een GPU (of geduld op CPU), en bereikbaarheid van de
-gx10-node voor het taalmodel (`LLM_BASE_URL`, standaard
-`http://100.64.x.x:8083/v1`). De runtime-venv wordt gedeeld met
-`lift-normen-search` (`/data/git/lift-normen-search/.venv`, een bewezen
+gx10-node voor het taalmodel (`LLM_BASE_URL` in `.env`). De runtime-venv wordt
+gedeeld met `lift-normen-search` (`/data/git/lift-normen-search/.venv`, een
+bewezen
 ML-stack met torch/transformers/pymupdf/fastapi).
 
 ```bash
@@ -126,7 +126,7 @@ python3 -m venv .venv
 .venv/bin/python3 build_index.py --municipality ijsselstein  # → embeddings.npy (GPU)
 
 # 3. draaien
-cp .env.example .env    # vul LLM_BASE_URL in indien nodig
+cp .env.example .env    # vul LLM_BASE_URL + SMTP_* in
 .venv/bin/python3 -m uvicorn app:app --port 8905
 ```
 

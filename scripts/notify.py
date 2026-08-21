@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Send a progress email from noreply@example.com (TransIP SMTP) to you@example.com.
+"""Send a progress email via SMTP. All SMTP_* settings come from the repo's
+.env (gitignored) — see .env.example for the list.
 
 Usage: python3 scripts/notify.py "Subject line" <<'EOF'
 Body text (plain).
@@ -26,14 +27,21 @@ def _load_env() -> None:
 
 _load_env()
 
-SMTP_HOST = "smtp.example.com"
-SMTP_PORT = 465
-SMTP_USER = "noreply@example.com"
+SMTP_HOST = os.environ.get("SMTP_HOST")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "465"))
+SMTP_USER = os.environ.get("SMTP_USER")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
-if not SMTP_PASSWORD:
-    raise SystemExit("SMTP_PASSWORD not set — add it to the repo .env (gitignored)")
-MAIL_FROM = "noreply@example.com"
-MAIL_TO = "you@example.com"
+MAIL_FROM = os.environ.get("MAIL_FROM", SMTP_USER or "")
+MAIL_TO = os.environ.get("MAIL_TO")
+
+_missing = [name for name, val in (
+    ("SMTP_HOST", SMTP_HOST),
+    ("SMTP_USER", SMTP_USER),
+    ("SMTP_PASSWORD", SMTP_PASSWORD),
+    ("MAIL_TO", MAIL_TO),
+) if not val]
+if _missing:
+    raise SystemExit("Missing SMTP_* vars — add them to the repo .env (gitignored): " + ", ".join(_missing))
 
 
 def send(subject: str, body: str) -> None:
