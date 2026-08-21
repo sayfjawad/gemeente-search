@@ -3,19 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slimme Gemeente Assistent</title>
+<meta name="description" content="Slimme Gemeente Assistent — stel vragen over uw gemeente in gewone taal en krijg een duidelijk, geciteerd antwoord uit de officiële pagina's en documenten van uw gemeente.">
+<title>Slimme Gemeente Assistent — stel vragen over uw gemeente</title>
 <style>
 :root{
   --bg:#f5f7fa; --panel:#ffffff; --ink:#0f172a; --muted:#64748b;
   --accent:#2563eb; --accent-strong:#1d4ed8; --accent-soft:#dbeafe; --on-accent:#ffffff;
-  --border:#e2e8f0; --ok:#16a34a; --warn:#d97706;
+  --border:#e2e8f0;
   --hero-from:#1d4ed8; --hero-to:#3b82f6;
   --shadow:0 8px 24px rgba(15,23,42,.10);
 }
 :root[data-theme="dark"]{
   --bg:#0b1220; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8;
   --accent:#3b82f6; --accent-strong:#60a5fa; --accent-soft:#1e293b; --on-accent:#ffffff;
-  --border:#1f2937; --ok:#22c55e; --warn:#f59e0b;
+  --border:#1f2937;
   --hero-from:#172554; --hero-to:#1e40af;
   --shadow:0 8px 24px rgba(0,0,0,.45);
 }
@@ -23,420 +24,204 @@
   :root:not([data-theme="light"]){
     --bg:#0b1220; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8;
     --accent:#3b82f6; --accent-strong:#60a5fa; --accent-soft:#1e293b; --on-accent:#ffffff;
-    --border:#1f2937; --ok:#22c55e; --warn:#f59e0b;
+    --border:#1f2937;
     --hero-from:#172554; --hero-to:#1e40af;
     --shadow:0 8px 24px rgba(0,0,0,.45);
   }
 }
 *{box-sizing:border-box}
+html{scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.6}
-.wrap{max-width:920px;margin:0 auto;padding:16px 16px 60px}
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.65}
+a{color:var(--accent)}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px 60px}
 
-header.hero{position:relative;border-radius:16px;overflow:hidden;margin-bottom:20px;
-  padding:26px 24px;min-height:150px;display:flex;align-items:center;
-  color:#fff;background-image:linear-gradient(135deg,var(--hero-from) 0%,var(--hero-to) 100%);
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 0}
+.topbar .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem}
+.topbar .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.theme-toggle{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);
+  background:var(--panel);color:var(--ink);font-size:1.05rem;cursor:pointer;line-height:1}
+.theme-toggle:hover{border-color:var(--accent)}
+
+header.hero{border-radius:18px;overflow:hidden;margin:6px 0 8px;
+  padding:42px 28px;color:#fff;background-image:linear-gradient(135deg,var(--hero-from) 0%,var(--hero-to) 100%);
   box-shadow:var(--shadow)}
-header.hero .hero-text{max-width:680px}
-header.hero h1{font-size:1.6rem;margin:0 0 8px;font-weight:800;letter-spacing:-.01em}
-header.hero p{margin:0;color:rgba(255,255,255,.9);font-size:.98rem;max-width:600px}
-.theme-toggle{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:50%;
-  border:1px solid rgba(255,255,255,.35);background:rgba(255,255,255,.16);color:#fff;
-  font-size:1.15rem;cursor:pointer;backdrop-filter:blur(4px);line-height:1}
-.theme-toggle:hover{background:rgba(255,255,255,.28)}
-
-.tabs{display:flex;gap:8px;margin-bottom:14px}
-.tabs button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
-  background:var(--panel);color:var(--ink);font-weight:600;cursor:pointer;font-size:.95rem}
-.tabs button.active{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
-
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;
-  box-shadow:0 1px 2px rgba(15,23,42,.04)}
-.muni-panel{padding:14px 16px;margin-bottom:14px}
-.muni-label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:8px}
-.muni-row{display:flex;align-items:center;gap:12px}
-.muni-logo{flex:0 0 auto;width:42px;height:42px;border-radius:10px;background:#fff;
-  display:flex;align-items:center;justify-content:center;overflow:hidden;
-  border:1px solid var(--border);box-shadow:0 2px 8px rgba(15,23,42,.12)}
-.muni-logo img{max-width:82%;max-height:82%;object-fit:contain}
-.combobox{position:relative;flex:1}
-.combobox input{width:100%;padding:10px 14px;font-size:1rem;border:1px solid var(--border);
-  border-radius:10px;background:var(--bg);color:var(--ink)}
-.combobox input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
-.cb-list{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel);
-  border:1px solid var(--border);border-radius:10px;max-height:300px;overflow-y:auto;
-  box-shadow:var(--shadow);z-index:10;display:none}
-.cb-list.open{display:block}
-.cb-option{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer}
-.cb-option:hover{background:var(--accent-soft)}
-.cb-option img{width:26px;height:26px;object-fit:contain;background:#fff;border-radius:6px;
-  padding:2px;border:1px solid var(--border);flex:0 0 auto}
-.cb-option span{font-weight:600}
-.cb-empty{padding:10px 12px;color:var(--muted);font-size:.9rem}
-
-.searchbar{display:flex;gap:8px;flex-wrap:wrap}
-.searchbar textarea{flex:1;min-width:240px;padding:12px 14px;font-size:1rem;
-  border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink);
-  font-family:inherit;resize:vertical;min-height:46px}
-.searchbar textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
-button.go{padding:12px 20px;font-size:1rem;border:0;border-radius:10px;cursor:pointer;
-  background:var(--accent);color:var(--on-accent);font-weight:700;white-space:nowrap}
-button.go:disabled{opacity:.45;cursor:not-allowed}
-
-#status{margin:14px 2px;color:var(--muted);font-size:.9rem}
-.answer-box{background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;
-  padding:16px 18px;margin:16px 0;font-size:1rem}
-#answer{display:none}
-.answer-box .cite{color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline}
-.answer-box p{margin:0 0 10px}
-.answer-box p:last-child{margin-bottom:0}
-.answer-box ul,.answer-box ol{margin:0 0 10px;padding-inline-start:22px}
-.answer-box li{margin:2px 0}
-.answer-box strong{color:var(--ink)}
-
-.disclaimer{display:none;background:var(--panel);border:1px solid var(--warn);
-  border-radius:12px;padding:12px 16px;margin:14px 0;font-size:.85rem;color:var(--muted)}
-.disclaimer strong{color:var(--warn)}
-
-.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
-  padding:12px 14px;margin-bottom:10px;scroll-margin-top:14px}
-.card.cited{border-inline-start:4px solid var(--accent)}
-.card .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin-bottom:6px}
-.card .doc{font-weight:700;font-size:.85rem;color:var(--accent)}
-.card .clause{font-size:.8rem;color:var(--muted);font-family:ui-monospace,monospace}
-.card a.pdf-shot{display:block;margin:8px 0;border:1px solid var(--border);border-radius:8px;
-  overflow:hidden;background:var(--bg)}
-.card a.pdf-shot img{display:block;width:100%;height:auto}
-.card .txt{font-size:.92rem}
-.card a.pdf{display:inline-block;margin-top:8px;font-size:.8rem;color:var(--accent);
-  text-decoration:none;border:1px solid var(--accent);border-radius:8px;padding:4px 10px}
-.card a.pdf:hover{background:var(--accent-soft)}
-.num-badge{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;
-  border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:.75rem;
-  font-weight:700;margin-inline-end:6px}
-
-.about{background:var(--panel);border:1px solid var(--border);border-radius:14px;
-  padding:16px 18px;margin-top:24px;font-size:.85rem;color:var(--muted)}
-
+header.hero .kicker{display:inline-block;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;
+  background:rgba(255,255,255,.16);padding:4px 12px;border-radius:999px;margin-bottom:16px}
+header.hero h1{font-size:2.1rem;margin:0 0 12px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
+header.hero p.tagline{margin:0 0 26px;color:rgba(255,255,255,.92);font-size:1.08rem;max-width:600px}
+.btn{display:inline-block;padding:12px 22px;border-radius:10px;font-weight:700;text-decoration:none;font-size:1rem}
+.btn.primary{background:#fff;color:var(--accent-strong)}
+.btn.primary:hover{background:var(--accent-soft)}
+.btn.ghost{background:rgba(255,255,255,.16);color:#fff;margin-left:8px}
+.btn.ghost:hover{background:rgba(255,255,255,.28)}
 @media (max-width:600px){
-  .wrap{padding:10px 10px 50px}
-  header.hero{padding:18px;min-height:120px}
-  header.hero h1{font-size:1.25rem}
-  .searchbar{flex-direction:column}
-  button.go{width:100%}
+  .btn.ghost{margin-left:0;margin-top:10px}
+}
+
+section{margin-top:34px}
+section h2{font-size:1.35rem;margin:0 0 12px;letter-spacing:-.01em}
+section .lead{color:var(--muted);max-width:720px;margin:0 0 16px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:18px 20px;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;margin:18px 0}
+.muni{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:16px 12px;text-align:center;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.muni .tile{width:64px;height:64px;margin:0 auto 12px;background:#fff;border:1px solid var(--border);
+  border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  box-shadow:0 2px 8px rgba(15,23,42,.08)}
+.muni .tile img{max-width:80%;max-height:80%;object-fit:contain}
+.muni .name{font-weight:700;font-size:.95rem}
+.muni .sub{font-size:.78rem;color:var(--muted);margin-top:2px}
+
+.note{background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;
+  padding:14px 18px;font-size:.92rem}
+.note strong{color:var(--accent)}
+
+.steps{list-style:none;counter-reset:s;margin:0;padding:0;display:grid;gap:12px}
+.steps li{position:relative;background:var(--panel);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px 14px 58px}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:16px;top:14px;
+  width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--on-accent);
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9rem}
+.steps li b{display:block}
+
+.usecases{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.usecases li{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  padding:13px 16px;padding-inline-start:40px;position:relative}
+.usecases li::before{content:"✓";position:absolute;left:15px;top:13px;color:var(--accent);font-weight:800}
+
+footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);
+  font-size:.82rem;color:var(--muted)}
+@media (max-width:600px){
+  header.hero{padding:30px 20px}
+  header.hero h1{font-size:1.6rem}
 }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="hero">
+  <nav class="topbar">
+    <div class="brand"><span class="dot"></span> Slimme Gemeente Assistent</div>
     <button class="theme-toggle" id="theme-toggle" title="Wissel licht/donker thema" aria-label="Wissel thema">🌙</button>
-    <div class="hero-text">
-      <h1>Slimme Gemeente Assistent</h1>
-      <p>Stel uw vraag in gewone taal en krijg een duidelijk antwoord met bronvermelding naar de officiële webpagina's en documenten van uw gemeente.</p>
-    </div>
+  </nav>
+
+  <header class="hero">
+    <span class="kicker">Overheidsinformatie, begrijpelijk gemaakt</span>
+    <h1>Stel uw vraag over uw gemeente in gewone taal</h1>
+    <p class="tagline">De Slimme Gemeente Assistent doorzoekt de officiële webpagina's en
+    documenten van uw gemeente en geeft één duidelijk, geciteerd antwoord — met de bron
+    erbij, zodat u kunt controleren waar het vandaan komt.</p>
+    <a class="btn primary" href="/zoek">Start met zoeken →</a>
+    <a class="btn ghost" href="#hoe">Hoe werkt het?</a>
   </header>
 
-  <div class="panel muni-panel">
-    <label class="muni-label" for="muni-input">Kies uw gemeente</label>
-    <div class="muni-row">
-      <div class="muni-logo" id="muni-logo" style="display:none"><img id="muni-logo-img" alt=""></div>
-      <div class="combobox" id="combobox">
-        <input type="text" id="muni-input" placeholder="Zoek uw gemeente…" autocomplete="off">
-        <div class="cb-list" id="cb-list"></div>
+  <section id="wat">
+    <h2>Wat is dit?</h2>
+    <p class="lead">Dit is een zoektoepassing die antwoord geeft op vragen over uw gemeente.
+    In plaats van zelf door de website, losse PDF's, verordeningen en het raadsarchief te
+    moeten ploegen, stelt u uw vraag in gewone taal — en de toepassing zoekt de relevante
+    passages bij elkaar en vat ze samen tot één antwoord.</p>
+    <div class="card">
+      Het bijzondere is dat elk antwoord <strong>bronnen citeert</strong>: bij elke bewering
+      staat een nummer dat verwijst naar de exacte webpagina of PDF-pagina van de gemeente.
+      Bij PDF's ziet u die pagina meteen als afbeelding, zodat u niet blind hoeft te
+      vertrouwen op een taalmodel dat bedragen of regels zou kunnen verzinnen.
+    </div>
+  </section>
+
+  <section id="waarvoor">
+    <h2>Waarvoor dient het?</h2>
+    <p class="lead">Voor alledaagse vragen waar u vroeger voor moest zoeken of bellen:</p>
+    <ul class="usecases">
+      <li>Wat kost een paspoort en welke documenten heb ik nodig?</li>
+      <li>Mag ik een serre plaatsen in mijn tuin, en is dat vergunningsvrij?</li>
+      <li>Op welke vergoedingen of regelingen heb ik recht?</li>
+      <li>Wat heeft de gemeenteraad besloten over een bepaald onderwerp?</li>
+      <li>Waar moet ik zijn voor een verhuizing, afvalpas of WMO-aanvraag?</li>
+    </ul>
+  </section>
+
+  <section id="hoe">
+    <h2>Hoe gebruik je het?</h2>
+    <ol class="steps">
+      <li><b>Kies uw gemeente</b> uit de lijst (of zoek op naam).</li>
+      <li><b>Stel uw vraag</b> in gewone taal — precies zoals u het aan iemand zou vragen.</li>
+      <li><b>Lees het antwoord</b> en klik op een citaatnummer om naar de bron te springen.</li>
+      <li><b>Controleer de bron</b> bij twijfel, of bekijk de originele pagina/PDF.</li>
+    </ol>
+    <p class="lead" style="margin-top:18px">
+      <strong>Zo mag de toepassing gebruikt worden:</strong> vrij, voor uw eigen
+      informatievoorziening. De antwoorden zijn <strong>automatisch gegenereerd met
+      kunstmatige intelligentie</strong> en hebben <strong>geen juridische status</strong> —
+      er kunnen geen rechten aan worden ontleend. Raadpleeg bij twijfel altijd de officiële
+      website van de gemeente.
+    </p>
+  </section>
+
+  <section id="gemeenten">
+    <h2>Ondersteunde gemeenten</h2>
+    <p class="lead">De toepassing ondersteunt op dit moment de volgende vijf gemeenten:</p>
+    <div class="grid">
+      <div class="muni">
+        <div class="tile"><img src="/logos/ijsselstein.png" alt="Logo IJsselstein"></div>
+        <div class="name">IJsselstein</div>
+      </div>
+      <div class="muni">
+        <div class="tile" style="background:#F06F74"><img src="/logos/nieuwegein.svg" alt="Logo Nieuwegein"></div>
+        <div class="name">Nieuwegein</div>
+      </div>
+      <div class="muni">
+        <div class="tile"><img src="/logos/vijfheerenlanden.svg" alt="Logo Vijfheerenlanden"></div>
+        <div class="name">Vijfheerenlanden</div>
+        <div class="sub">16 dorpen en steden</div>
+      </div>
+      <div class="muni">
+        <div class="tile"><img src="/logos/utrecht.svg" alt="Logo Utrecht"></div>
+        <div class="name">Utrecht</div>
+      </div>
+      <div class="muni">
+        <div class="tile"><img src="/logos/houten.svg" alt="Logo Houten"></div>
+        <div class="name">Houten</div>
       </div>
     </div>
-  </div>
+    <p class="note">
+      <strong>Beperkt door beperkte middelen.</strong> Deze dienst is bewust beperkt tot
+      bovenstaande gemeenten, omdat elke gemeente een eigen inspanning vraagt om de informatie
+      op te halen, te indexeren en actueel te houden. Wilt u dat uw gemeente wordt toegevoegd,
+      of wilt u meedenken over hoe dit breder kan worden opgeschaald? Neem dan contact op met
+      <a href="https://stichtingduurzaamai.nl" target="_blank" rel="noopener noreferrer">stichtingduurzaamai.nl</a>.
+    </p>
+  </section>
 
-  <div class="tabs">
-    <button id="tab-ask" class="active">Vraag stellen</button>
-    <button id="tab-search">Zoeken</button>
-  </div>
-
-  <div class="panel">
-    <div class="searchbar">
-      <textarea id="q" placeholder="Bijv. 'Wat kost een paspoort en welke documenten heb ik nodig?'"></textarea>
-      <button class="go" id="go" disabled>Zoeken</button>
-    </div>
-  </div>
-
-  <div id="status"></div>
-  <div id="answer"></div>
-  <div class="disclaimer" id="disclaimer">
-    Deze zoekfunctie gebruikt <strong>kunstmatige intelligentie (AI)</strong>.
-    Antwoorden worden automatisch gegenereerd op basis van gecrawlde (automatisch
-    verzamelde) informatie van de website en documenten van de gekozen gemeente.
-    AI is niet-deterministisch: antwoorden kunnen onjuist, onvolledig of verouderd
-    zijn en hebben <strong>geen juridische status</strong>. Aan de getoonde
-    informatie kunnen geen rechten worden ontleend. Controleer altijd de geciteerde
-    bron of de officiële website van de gemeente.
-  </div>
-  <div id="results"></div>
-
-  <div class="about">
-    Deze tool doorzoekt automatisch verzamelde (gecrawlde) webpagina's en documenten van de
-    gekozen gemeente. Resultaten kunnen onvolledig of verouderd zijn; raadpleeg bij twijfel
-    altijd de officiële website van de gemeente.
-  </div>
+  <footer>
+    Dit is een initiatief om overheidsinformatie toegankelijker te maken. Voor het onboarden van
+    nieuwe gemeenten of vragen over de dienst: <a href="https://stichtingduurzaamai.nl"
+    target="_blank" rel="noopener noreferrer">stichtingduurzaamai.nl</a>.
+  </footer>
 </div>
 
 <script>
-const $ = sel => document.querySelector(sel);
-const qEl = $('#q'), goEl = $('#go'), statusEl = $('#status'), answerEl = $('#answer'),
-      resultsEl = $('#results'), disclaimerEl = $('#disclaimer'),
-      tabAsk = $('#tab-ask'), tabSearch = $('#tab-search');
-const muniInput = $('#muni-input'), cbList = $('#cb-list'), combobox = $('#combobox');
-const muniLogo = $('#muni-logo'), muniLogoImg = $('#muni-logo-img');
-const themeToggle = $('#theme-toggle');
-let mode = 'ask';
-let municipalities = [];
-let currentSlug = null;
-let currentSiteHost = '';
-
-// ---- theme (light / dark, default: system) ----
-function currentTheme(){
-  const t = localStorage.getItem('theme');
-  if(t === 'light' || t === 'dark') return t;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-function applyTheme(t){
-  document.documentElement.dataset.theme = t;
-  themeToggle.textContent = t === 'dark' ? '☀️' : '🌙';
-  themeToggle.title = t === 'dark' ? 'Schakel naar licht thema' : 'Schakel naar donker thema';
-}
-themeToggle.onclick = () => {
-  const t = currentTheme() === 'dark' ? 'light' : 'dark';
-  localStorage.setItem('theme', t);
-  applyTheme(t);
-};
-applyTheme(currentTheme());
-
-function setMode(m){
-  mode = m;
-  tabAsk.classList.toggle('active', m==='ask');
-  tabSearch.classList.toggle('active', m==='search');
-  goEl.textContent = m==='ask' ? 'Vraag stellen' : 'Zoeken';
-  qEl.placeholder = m==='ask'
-    ? "Bijv. 'Wat kost een paspoort en welke documenten heb ik nodig?'"
-    : "Bijv. 'paspoort kosten'";
-}
-tabAsk.onclick = () => setMode('ask');
-tabSearch.onclick = () => setMode('search');
-setMode('ask');
-
-function escapeHtml(s){
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-// ---- municipality combobox ----
-function renderCbOptions(list){
-  cbList.innerHTML = '';
-  if(!list.length){
-    cbList.innerHTML = '<div class="cb-empty">Geen gemeenten beschikbaar</div>';
-    return;
+(function(){
+  const t = document.getElementById('theme-toggle');
+  function current(){
+    const s = localStorage.getItem('theme');
+    if(s === 'light' || s === 'dark') return s;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
-  list.forEach(m => {
-    const opt = document.createElement('div');
-    opt.className = 'cb-option';
-    opt.dataset.slug = m.slug;
-    opt.innerHTML = (m.logo ? `<img src="/${m.logo}" alt=""${m.logo_bg ? ` style="background:${m.logo_bg}"` : ''}>` : '') + `<span>${escapeHtml(m.name)}</span>`;
-    opt.onclick = () => { selectMuni(m); closeCb(); };
-    cbList.appendChild(opt);
-  });
-}
-
-function openCb(){ cbList.classList.add('open'); filterCb(muniInput.value); }
-function closeCb(){ cbList.classList.remove('open'); }
-function filterCb(q){
-  q = q.trim().toLowerCase();
-  cbList.querySelectorAll('.cb-option').forEach(o => {
-    o.style.display = o.textContent.toLowerCase().includes(q) ? '' : 'none';
-  });
-}
-
-function selectMuni(m){
-  if(!m) return;
-  currentSlug = m.slug;
-  muniInput.value = m.name;
-  if(m.logo){
-    muniLogoImg.src = '/' + m.logo;
-    muniLogo.style.background = m.logo_bg || '#fff';
-    muniLogo.style.display = 'flex';
-  } else {
-    muniLogo.style.display = 'none';
+  function apply(theme){
+    document.documentElement.dataset.theme = theme;
+    t.textContent = theme === 'dark' ? '☀️' : '🌙';
   }
-  goEl.disabled = false;
-  currentSiteHost = (m.website || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
-}
-
-async function loadMunicipalities(){
-  try{
-    const res = await fetch('/api/municipalities');
-    const data = await res.json();
-    municipalities = data.municipalities || [];
-  }catch(e){ municipalities = []; }
-  renderCbOptions(municipalities);
-  // No default selection — the user must pick a municipality first.
-}
-
-muniInput.addEventListener('focus', openCb);
-muniInput.addEventListener('input', openCb);
-muniInput.addEventListener('keydown', e => {
-  if(e.key === 'Enter'){
-    const first = cbList.querySelector('.cb-option:not([style*="display: none"])');
-    if(first) first.click();
-  }
-});
-document.addEventListener('click', e => { if(!combobox.contains(e.target)) closeCb(); });
-
-// ---- lightweight markdown (bold, bullet/numbered lists) ----
-function renderMarkdownBlocks(text){
-  const lines = text.split('\n');
-  const blocks = [];
-  let i = 0;
-  const isBullet = l => /^\s*[-*]\s+/.test(l);
-  const isNumbered = l => /^\s*\d+\.\s+/.test(l);
-  while(i < lines.length){
-    const line = lines[i];
-    if(line.trim() === ''){ i++; continue; }
-    if(isBullet(line)){
-      const items = [];
-      while(i < lines.length && isBullet(lines[i])){ items.push(lines[i].replace(/^\s*[-*]\s+/, '')); i++; }
-      blocks.push('<ul>' + items.map(it => `<li>${it}</li>`).join('') + '</ul>');
-    } else if(isNumbered(line)){
-      const items = [];
-      while(i < lines.length && isNumbered(lines[i])){ items.push(lines[i].replace(/^\s*\d+\.\s+/, '')); i++; }
-      blocks.push('<ol>' + items.map(it => `<li>${it}</li>`).join('') + '</ol>');
-    } else {
-      const para = [];
-      while(i < lines.length && lines[i].trim() !== '' && !isBullet(lines[i]) && !isNumbered(lines[i])){
-        para.push(lines[i]); i++;
-      }
-      blocks.push('<p>' + para.join('<br>') + '</p>');
-    }
-  }
-  return blocks.join('');
-}
-
-function formatAnswerHtml(answer){
-  let html = escapeHtml(answer);
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-  html = html.replace(/[\[【［]([\d,\-\s]+)[\]】］]/g, (m, group) => {
-    const nums = [];
-    group.split(/[,\s]+/).forEach(part => {
-      if(part.includes('-')){
-        const [a,b] = part.split('-').map(Number);
-        if(!isNaN(a) && !isNaN(b)) for(let k=a;k<=b;k++) nums.push(k);
-      } else if(part.trim() !== '' && !isNaN(Number(part))){
-        nums.push(Number(part));
-      }
-    });
-    if(!nums.length) return m;
-    return `<span class="cite" data-n="${nums[0]}">[${group}]</span>`;
-  });
-  return renderMarkdownBlocks(html);
-}
-
-function wireCites(container){
-  container.querySelectorAll('.cite').forEach(el => {
-    el.onclick = () => {
-      const target = document.getElementById('src-' + el.dataset.n);
-      if(target) target.scrollIntoView({behavior:'smooth', block:'center'});
-    };
-  });
-}
-
-function renderSource(s, i){
-  const div = document.createElement('div');
-  div.className = 'card' + (s.cited ? ' cited' : '');
-  div.id = 'src-' + (i+1);
-  const isPdf = s.doc_type === 'pdf';
-  const loc = isPdf ? `PDF · pagina ${s.page_start}` : 'webpagina';
-  const date = s.published_at ? `<span class="clause">${escapeHtml(s.published_at)}</span>` : '';
-  let media = '';
-  if(isPdf){
-    media = `
-      <a class="pdf-shot" href="${s.pdf_url}" target="_blank" rel="noopener noreferrer">
-        <img src="${s.image_url}" alt="Pagina ${s.page_start} van ${escapeHtml(s.document_title)}"
-             loading="lazy" onerror="this.closest('.pdf-shot').remove()">
-      </a>
-      <a class="pdf" href="${s.pdf_url}" target="_blank" rel="noopener noreferrer">Open PDF (pagina ${s.page_start}) →</a>
-    `;
-  } else {
-    media = `<a class="pdf" href="${s.url}" target="_blank" rel="noopener noreferrer">Open webpagina →</a>`;
-  }
-  div.innerHTML = `
-    <div class="meta">
-      <span class="num-badge">${i+1}</span>
-      <span class="doc">${escapeHtml(s.document_title)}</span>
-      <span class="clause">${loc}</span>
-      ${date}
-    </div>
-    ${media}
-    <div class="txt">${escapeHtml(s.text)}</div>
-  `;
-  return div;
-}
-
-function renderSources(sources){
-  resultsEl.innerHTML = '';
-  sources.forEach((s,i) => resultsEl.appendChild(renderSource(s,i)));
-}
-
-function renderAnswer(answer, error){
-  if(error){
-    answerEl.style.display = 'block';
-    answerEl.className = 'answer-box';
-    answerEl.innerHTML = `<span style="color:var(--warn)">Kon geen antwoord genereren (${escapeHtml(error)}). De losse fragmenten hieronder zijn nog wel beschikbaar.</span>`;
-    return;
-  }
-  if(!answer){ answerEl.style.display = 'none'; return; }
-  answerEl.className = 'answer-box';
-  answerEl.style.display = 'block';
-  answerEl.innerHTML = formatAnswerHtml(answer);
-  wireCites(answerEl);
-}
-
-async function run(){
-  if(!currentSlug){
-    statusEl.textContent = 'Kies eerst uw gemeente om te kunnen zoeken.';
-    return;
-  }
-  const query = qEl.value.trim();
-  if(!query) return;
-  goEl.disabled = true;
-  answerEl.style.display = 'none';
-  resultsEl.innerHTML = '';
-  statusEl.textContent = mode === 'ask' ? 'Zoeken en antwoord genereren…' : 'Zoeken…';
-  try{
-    if(mode === 'search'){
-      const res = await fetch('/api/search', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({query, top_k: 20, municipality: currentSlug})});
-      const data = await res.json();
-      statusEl.textContent = `${data.results.length} resultaten`;
-      renderSources(data.results);
-    } else {
-      const res = await fetch('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({question: query, top_k: 8, municipality: currentSlug})});
-      const data = await res.json();
-      statusEl.textContent = `${data.sources.length} bronnen geraadpleegd` +
-        (data.agentic ? ` (live opgehaald van ${currentSiteHost})` : '');
-      renderAnswer(data.answer, data.error);
-      renderSources(data.sources);
-    }
-    disclaimerEl.style.display = 'block';
-  } catch(e){
-    statusEl.textContent = 'Er ging iets mis: ' + e;
-  } finally {
-    goEl.disabled = !currentSlug;
-  }
-}
-goEl.onclick = run;
-qEl.addEventListener('keydown', e => {
-  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); run(); }
-});
-
-loadMunicipalities();
+  t.onclick = function(){
+    const next = current() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    apply(next);
+  };
+  apply(current());
+})();
 </script>
 </body>
 </html>

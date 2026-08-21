@@ -580,4 +580,10 @@ def pdf_file(slug: str, filename: str):
     return FileResponse(path, media_type="application/pdf")
 
 
+@app.get("/zoek")
+def zoek_page():
+    # De zoek-app staat los van de landingpagina (static/index.html op `/`).
+    return FileResponse(BASE / "static" / "zoek.html", media_type="text/html")
+
+
 app.mount("/", StaticFiles(directory=BASE / "static", html=True), name="static")

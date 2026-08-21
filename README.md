@@ -79,8 +79,16 @@ records.
 - **Gebruiksstatistieken** (`/api/statistics`): aantal queries per modus,
   unieke IP's, per dag — opgeslagen in `stats.sqlite` (buiten `data/`, zodat
   her-indexeren de historie niet wist).
-- Responsive UI (`static/index.html`, geen build-stap — één self-contained
-  HTML-bestand met light/dark-theme).
+- Responsive UI zonder build-stap — twee self-contained HTML-bestanden:
+  `static/index.html` (landingpagina op `/`) en `static/zoek.html` (de zoek-app op
+  `/zoek`), beide met light/dark-theme.
+
+**Ondersteunde gemeenten:** IJsselstein, Nieuwegein, Vijfheerenlanden (16
+dorpen/steden), Utrecht en Houten. De dienst is vanwege **beperkte middelen**
+bewust beperkt tot deze gemeenten — elke gemeente vraagt een eigen
+crawl-, indexeer- en onderhoudsinspanning. Wil je een gemeente laten toevoegen
+(of meedenken over opschaling)? Neem contact op via
+[stichtingduurzaamai.nl](https://stichtingduurzaamai.nl).
 
 ## API
 
@@ -93,7 +101,8 @@ records.
 | `/api/statistics` | GET | gebruiksstatistieken (queries, unieke IP's, per dag) |
 | `/pdf-image/{slug}/{chunk_id}` | GET | PNG-render van de PDF-pagina van die chunk |
 | `/pdf/{slug}/{filename}` | GET | volledige bron-PDF (Range-requests, `#page=N`) |
-| `/` | GET | de frontend (`static/index.html`) |
+| `/` | GET | de landingpagina (`static/index.html`) |
+| `/zoek` | GET | de zoek-app (`static/zoek.html`) |
 
 ## Lokaal draaien
 
@@ -141,6 +150,8 @@ her-crawlbaarheid.
 De volledige architectuur staat in `docs/architecture/`, gestructureerd met
 dezelfde **nummering als `odp-architecture`** (00–13):
 
+- [docs/project-journey.md](docs/project-journey.md) — het projectjournaal: wat is
+  er bereikt, welke problemen kwamen we tegen, en wat heeft het opgeleverd
 - [docs/architecture/](docs/architecture/README.md) — index & navigatietabel
 - [00-overview](docs/architecture/00-overview/) — context, visie, scope, glossary
 - [01-principes](docs/architecture/01-architecture-principles/) — drivers, constraints, invloeden uit andere projecten
