@@ -1,7 +1,7 @@
 # Incidenten
 
-Er zijn tot nu toe **geen productie-incidenten** geregistreerd voor
-`gemeente-search`.
+- [2026-08-21: lege antwoorden ondanks correcte bronnen (DeepSeek)](incident-2026-08-21-deepseek-lege-antwoorden.md)
+- [2026-08-23: onboarding-pipeline kan de live service niet herstarten](incident-2026-08-23-onboarding-restart-falen.md)
 
 ## Registratie-format
 
