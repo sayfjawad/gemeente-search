@@ -423,30 +423,41 @@ def user_turn(question: str, excerpts: str) -> str:
 
 
 async def call_llm(messages: list[dict]) -> str:
-    """GPT-OSS-120B via llama.cpp (OpenAI-compatible). GPT-OSS is a reasoning
-    model: without enable_thinking:false the whole budget goes to
-    reasoning_content and `content` stays empty, so always send it. A generous
-    max_tokens leaves room for the (small) reasoning prefix + the real answer."""
-    async with httpx.AsyncClient(timeout=300.0) as client:
-        resp = await client.post(
-            f"{LLM_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {LLM_API_KEY}"},
-            json={
-                "model": LLM_MODEL,
-                "max_tokens": 1800,
-                "temperature": 0.2,
-                "messages": messages,
-                "chat_template_kwargs": {"enable_thinking": False},
-            },
-        )
-        resp.raise_for_status()
-        answer = resp.json()["choices"][0]["message"]["content"]
-        answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
-        # GPT-OSS sometimes emits CJK full-width brackets for citations (【6】/［6］);
-        # normalize to ASCII so both citation detection here and the frontend match.
-        for a, b in (("【", "["), ("】", "]"), ("［", "["), ("］", "]")):
-            answer = answer.replace(a, b)
-        return answer
+    """Reasoning model via an OpenAI-compatible endpoint (GPT-OSS/llama.cpp or,
+    temporarily, DeepSeek's API -- see .env). Both are reasoning models: without
+    enable_thinking:false the whole budget goes to reasoning_content and
+    `content` stays empty, so always send it -- but DeepSeek ignores that
+    llama.cpp-specific flag and can still burn the entire max_tokens on
+    reasoning for an ambiguous/conflicting source set, returning
+    finish_reason="length" with empty content. Retry once with a much larger
+    budget when that happens rather than surfacing a sourced-but-blank answer."""
+    async def _request(max_tokens: int) -> tuple[str, str]:
+        async with httpx.AsyncClient(timeout=300.0) as client:
+            resp = await client.post(
+                f"{LLM_BASE_URL}/chat/completions",
+                headers={"Authorization": f"Bearer {LLM_API_KEY}"},
+                json={
+                    "model": LLM_MODEL,
+                    "max_tokens": max_tokens,
+                    "temperature": 0.2,
+                    "messages": messages,
+                    "chat_template_kwargs": {"enable_thinking": False},
+                },
+            )
+            resp.raise_for_status()
+            choice = resp.json()["choices"][0]
+            return choice["message"]["content"], choice.get("finish_reason", "")
+
+    answer, finish_reason = await _request(1800)
+    if not answer.strip() and finish_reason == "length":
+        answer, _ = await _request(6000)
+
+    answer = re.sub(r"<think>.*?</think>", "", answer, flags=re.DOTALL).strip()
+    # GPT-OSS sometimes emits CJK full-width brackets for citations (【6】/［6］);
+    # normalize to ASCII so both citation detection here and the frontend match.
+    for a, b in (("【", "["), ("】", "]"), ("［", "["), ("］", "]")):
+        answer = answer.replace(a, b)
+    return answer
 
 
 class Turn(BaseModel):

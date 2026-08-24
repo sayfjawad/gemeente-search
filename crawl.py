@@ -30,7 +30,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, parse_qs
 
 import httpx
 import trafilatura
@@ -105,6 +105,17 @@ SKIP_PATHS: list = []
 PDF_PAT = re.compile(r"\.pdf($|[\?#])", re.I)
 MIN_HTML_CHARS = 80
 
+# Faceted-search and pagination query parameters open an unbounded URL space:
+# Aa en Hunze's sewer-connection search produced 173k of its 179k crawled URLs
+# via ?searchbase=/?sp=/?f=/?freetext=, and Heerde's news pagination 68k of 70k
+# via ?offset=/?datefrom=. The pages behind them are either duplicates of the
+# unparameterised page or search-result fragments, so a URL carrying one is
+# never followed. Real content stays reachable via the sitemap and plain links.
+TRAP_PARAMS = {
+    "searchbase", "sp", "f", "freetext", "datefrom", "dateto",
+    "offset", "page", "start", "sort", "filter", "facet",
+}
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -121,7 +132,17 @@ def fits_scope(url: str) -> bool:
         return False
     if any(rx.match(path) for rx in SKIP_PATHS):
         return False
-    if host == SITE_DOMAIN.lower() or host.endswith("." + BASE_DOMAIN.lower()):
+    if any(k.lower() in TRAP_PARAMS for k in parse_qs(p.query)):
+        return False
+    # `host == BASE_DOMAIN` matters for sites that redirect www -> apex
+    # (haarlem.nl): endswith("." + BASE_DOMAIN) does not match the apex itself,
+    # so without this every URL from such a site is judged out of scope and the
+    # crawl stops after the start page.
+    if (
+        host == SITE_DOMAIN.lower()
+        or host == BASE_DOMAIN.lower()
+        or host.endswith("." + BASE_DOMAIN.lower())
+    ):
         return True
     if host == CDN_HOST:
         return path.startswith(CDN_UPLOAD_PREFIX) and PDF_PAT.search(path)
@@ -154,13 +175,16 @@ def crude_date(text: str):
 
 
 def html_extract(url: str, html: str) -> tuple[str, str, str | None]:
-    downloaded = trafilatura.bare_extraction(
-        html, url=url, include_comments=False, include_tables=True
-    )
-    if downloaded and downloaded.get("text"):
-        title = downloaded.get("title") or ""
-        text = downloaded["text"]
-        pub = downloaded.get("date") or crude_date(text)
+    try:
+        downloaded = trafilatura.bare_extraction(
+            html, url=url, include_comments=False, include_tables=True
+        )
+    except Exception:
+        downloaded = None  # trafilatura can raise on odd markup (see wayback_crawl)
+    if downloaded and getattr(downloaded, "text", None):
+        title = getattr(downloaded, "title", "") or ""
+        text = downloaded.text
+        pub = getattr(downloaded, "date", None) or crude_date(text)
         return title, text, pub
     soup = BeautifulSoup(html, "lxml")
     title = soup.title.string.strip() if soup.title and soup.title.string else ""
@@ -243,26 +267,67 @@ def robots_for(rp_site, rp_cdn, url: str):
 
 
 # -------------------------------------------------------------- sitemap
-async def fetch_sitemap_urls(client: httpx.AsyncClient) -> list[str]:
-    urls: list[str] = []
+async def _sitemap_locs(
+    client: httpx.AsyncClient, sm_url: str, depth: int = 0
+) -> list[str]:
+    """The <loc> entries of one sitemap, following <sitemapindex> nesting.
+
+    Recurses because indexes are nested more than one level in the wild:
+    Lelystad's /nl/sitemap/location.xml is an index of page-1.xml..page-6.xml,
+    each of which is the sitemap that actually lists pages.
+    """
+    out: list[str] = []
+    if depth > 2:
+        return out
     try:
-        r = await client.get(f"https://{SITE_DOMAIN}/sitemap.xml")
-        if r.status_code != 200:
-            return urls
+        r = await client.get(sm_url)
+        if r.status_code != 200 or "<loc>" not in r.text:
+            return out
         xml = r.text
         if "<sitemapindex" in xml:
             for loc in re.findall(r"<loc>([^<]+)</loc>", xml)[:30]:
-                try:
-                    cr = await client.get(loc)
-                    if cr.status_code == 200:
-                        urls += re.findall(r"<loc>([^<]+)</loc>", cr.text)
-                except Exception:
-                    pass
+                out += await _sitemap_locs(client, loc, depth + 1)
         else:
-            urls = re.findall(r"<loc>([^<]+)</loc>", xml)
+            out = re.findall(r"<loc>([^<]+)</loc>", xml)
     except Exception:
         pass
-    return [canonicalize(strip_fragment(u)) for u in urls if fits_scope(u)]
+    return out
+
+
+async def robots_sitemap_urls(client: httpx.AsyncClient) -> list[str]:
+    """`Sitemap:` directives from robots.txt.
+
+    Some sites 404 on /sitemap.xml but do advertise their real sitemaps in
+    robots.txt (Hillegom), and others split content over several sitemaps the
+    index itself does not list (Lelystad's event/location/route sitemaps).
+    Without this the crawl falls back to BFS alone, which on a JS-rendered
+    homepage finds no links at all and yields an empty corpus.
+    """
+    try:
+        r = await client.get(f"https://{SITE_DOMAIN}/robots.txt")
+        if r.status_code != 200:
+            return []
+        return re.findall(r"(?im)^\s*sitemap:\s*(\S+)", r.text)
+    except Exception:
+        return []
+
+
+async def fetch_sitemap_urls(client: httpx.AsyncClient) -> list[str]:
+    candidates = [f"https://{SITE_DOMAIN}/sitemap.xml"]
+    for sm in await robots_sitemap_urls(client):
+        if sm not in candidates:
+            candidates.append(sm)
+    urls: list[str] = []
+    for sm in candidates[:10]:
+        urls += await _sitemap_locs(client, sm)
+    seen: set[str] = set()
+    out: list[str] = []
+    for u in urls:
+        cu = canonicalize(strip_fragment(u))
+        if cu not in seen and fits_scope(cu):
+            seen.add(cu)
+            out.append(cu)
+    return out
 
 
 async def fetch_product_sitemap_urls(client: httpx.AsyncClient) -> list[str]:
