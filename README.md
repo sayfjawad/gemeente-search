@@ -60,10 +60,10 @@ records.
 
 ## Features
 
-- **Meerdere gemeenten in één service**: IJsselstein, Nieuwegein,
-  Vijfheerenlanden, Utrecht en Houten zijn live; de index per gemeente is
-  gescheiden, de dropdown kiest de gemeente. Onboarden van een nieuwe gemeente
-  is één register-entry plus een pipeline-run (zie
+- **Meerdere gemeenten in één service**: de index per gemeente is gescheiden,
+  de dropdown kiest de gemeente. De landelijke uitrol brengt gemeenten continu
+  online (zie "Landelijke uitrol" hieronder); onboarden van één nieuwe gemeente
+  is een register-entry plus een pipeline-run (zie
   [ADR-001](docs/architecture/07-decision-records/ADR-001-multi-gemeente-register.md)).
 - **Vraag stellen** (`/api/ask`): RAG-antwoord in het Nederlands met
   `[n]`-citaten die verwijzen naar de genummerde bronnen, per bewering.
@@ -134,16 +134,44 @@ Een volledige onboarding draait via
 [`scripts/onboard_barendrecht.sh`](scripts/onboard_barendrecht.sh) (detached,
 met e-mail per mijlpaal).
 
+## Landelijke uitrol (alle ~342 gemeenten)
+
+De automatische onboarding van heel Nederland draait als systemd-unit op de
+GPU-machine en is resumable/fault-tolerant:
+
+- **`scripts/onboard_all.py`** — de orchestrator. Per gemeente:
+  `crawl.py` → `ingest.py` → `build_index.py` → register flippen naar
+  `enabled` → app herstarten → verifiëren via `/api/municipalities`. Voortgang
+  staat in `scripts/onboarding_queue.json` (`pending`/`crawled`/`done`/`failed`
+  per slug); een crash of reboot pakt op waar hij was. Een kwaliteitsgate
+  (`ONBOARD_MIN_DOCS`, default 50) voorkomt dat een gemeente met een lege crawl
+  live gaat — die wordt `failed` met een duidelijke reden.
+- **`scripts/monitor.py`** — live web-monitor op poort **8906**: per gemeente
+  een tabel met status, gecrawlde docs, nog-te-verwerken URLs, en
+  index-docs/chunks, met ▲▼-deltas die per poll veranderen. Gebouwd omdat een
+  uitrol van deze omvang zonder zicht "voelt alsof er niets gebeurt tot het fout
+  gaat".
+- **`scripts/wayback_crawl.py`** — fallback voor sites die ons blokkeren
+  (CloudFront 403): trekt de gearchiveerde HTML van de site uit de Wayback
+  Machine en schrijft hetzelfde `docs.jsonl`-formaat, zodat de rest van de
+  pipeline er niets van merkt. Citaties behouden de originele URL; alleen de
+  fetch loopt via `web.archive.org`. Gebruikt voor Dalfsen (9126 docs live).
+
+De crawl-output en PDF's staan op de NAS (`/mnt/nas-gemeente/<slug>/`,
+bereikbaar via `data/<slug>/crawl`- en `data/<slug>/pdfs`-symlinks) — zie
+"Over de brondata" hieronder.
+
 ## Over de brondata
 
 De zware afgeleide data zit bewust **niet** in deze repo (zie
 [ADR-009](docs/architecture/07-decision-records/ADR-009-brondata-niet-in-git.md)):
 `data/<slug>/pdfs/` (de gedownloade PDF's, per gemeente 0,1–8 GB),
-`index.sqlite`, en `embeddings.npy`. De crawl-*tekst* zelf
-(`data/<slug>/crawl/*.jsonl`) wél — die is klein genoeg om te committen en
-maakt de index herbouwbaar. De brondata is openbare gemeente-informatie, dus er
-is geen auteursrechtelijk bezwaar, alleen een praktisch: grootte en
-her-crawlbaarheid.
+`index.sqlite`, en `embeddings.npy`. Sinds de NAS-migratie staat ook de
+crawl-*tekst* (`data/<slug>/crawl/*.jsonl`) niet meer in git — de `crawl/`- en
+`pdfs/`-mappen zijn symlinks naar `/mnt/nas-gemeente/<slug>/`, zodat de uitrol
+van alle ~342 gemeenten niet lokaal schijft maar op de NAS landt. De brondata
+is openbare gemeente-informatie, dus er is geen auteursrechtelijk bezwaar,
+alleen een praktisch: grootte en her-crawlbaarheid.
 
 ## Documentatie
 
