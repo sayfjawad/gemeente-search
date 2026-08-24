@@ -30,7 +30,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin, urlparse, parse_qs
+from urllib.parse import urljoin, urlparse, parse_qs, unquote
 
 import httpx
 import trafilatura
@@ -98,6 +98,19 @@ SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboa
 # PRODUCT_SITEMAP); its /formulier/ + /afspraak/ wizard flows are skipped via
 # SKIP_PATH instead.
 SKIP_HOST = re.compile(r"^(mijn|afspraak|formulieren|digitaal|zaak|berichten|open|data|digid|eherkenning|idp|sso|login|account|portal)\d*\.", re.I)
+# File-transfer / secure-messaging portals.  These are login-gated "send a large
+# file" services (Cryptshare, and various "bestand"/"bestandverzenden"/
+# "filetransfer" instances) whose pages are JS session-URLs -- each request gets
+# a fresh ;jsessionid= and explodes the frontier into millions of unique URLs
+# with no real municipal content (2026-08-24: cryptshare.delft.nl 217k docs,
+# crypt.apeldoorn.nl 89k, bestand.gemeentebest.nl 60k, filetransfer.gennep.nl
+# 94k, bestandverzenden.leeuwarden.nl 86k, cryptshare.rijswijk.nl 72k, all junk).
+SKIP_HOST_PORTAL = re.compile(r"^(crypt|cryptshare|bestand|bestandverzenden|filetransfer|fileshare|almereconnect)\d*\.", re.I)
+# Session-token path parameters (Java ;jsessionid= / PHP ;phpsessid=).  These
+# turn ONE page into an unbounded number of unique URLs.  We strip them in
+# canonicalize() so the page collapses to its real identity; fits_scope() also
+# rejects any URL that still carries one as a belt-and-suspenders backstop.
+SESSION_PATH = re.compile(r";(jsessionid|phpsessid)=[^/?#]+", re.I)
 # Per-municipality path exclusions (e.g. a Digitaal Loket's JS search-hub pages
 # `/nl` and `/nl/producten`, whose filters generate endless trap URLs). Matched
 # against the URL path only; loaded from the registry's `skip_paths` list.
@@ -112,9 +125,17 @@ MIN_HTML_CHARS = 80
 # unparameterised page or search-result fragments, so a URL carrying one is
 # never followed. Real content stays reachable via the sitemap and plain links.
 TRAP_PARAMS = {
-    "searchbase", "sp", "f", "freetext", "datefrom", "dateto",
+    "searchbase", "sp", "f", "freetext", "datefrom", "dateto", "datetill",
     "offset", "page", "start", "sort", "filter", "facet",
 }
+# Query-parameter names that mark a trap when they appear as a substring of the
+# (URL-decoded) key.  TYPO3 Solr facets (`tx_solr[filter][N]`) and language-switch
+# menus (`0-1.-header-languageswitch-...`) encode their brackets as %5B/%5D, so
+# parse_qs() keys keep the percent-encoding and an exact match never fires — these
+# have to be matched by substring after decoding.  2026-08-24: almere's
+# sportindewijk TYPO3 Solr generated 104k URLs from 180 paths via tx_solr; the
+# `languageswitch` menu did the same on apeldoorn/delft/leeuwarden/best.
+TRAP_PARAM_SUBSTR = ("tx_solr", "languageswitch", "nav_id", "chash", "searchtype")
 
 
 def now_iso() -> str:
@@ -128,12 +149,22 @@ def fits_scope(url: str) -> bool:
         return False
     host = p.netloc.split(":")[0].lower()
     path = p.path.lower()
-    if SKIP_HOST.match(host):
+    if SKIP_HOST.match(host) or SKIP_HOST_PORTAL.match(host):
         return False
     if any(rx.match(path) for rx in SKIP_PATHS):
         return False
-    if any(k.lower() in TRAP_PARAMS for k in parse_qs(p.query)):
+    if SESSION_PATH.search(path):
         return False
+    for key in parse_qs(p.query):
+        k = key.lower()
+        if k in TRAP_PARAMS:
+            return False
+        # URL-decode %5B/%5D back to brackets so TYPO3/Array-style keys match.
+        kdec = unquote(key).lower()
+        if kdec in TRAP_PARAMS:
+            return False
+        if any(sub in kdec for sub in TRAP_PARAM_SUBSTR):
+            return False
     # `host == BASE_DOMAIN` matters for sites that redirect www -> apex
     # (haarlem.nl): endswith("." + BASE_DOMAIN) does not match the apex itself,
     # so without this every URL from such a site is judged out of scope and the
@@ -163,7 +194,9 @@ def canonicalize(url: str) -> str:
         return url.split("?", 1)[0]
     if p.scheme == "http":
         url = url.replace("http://", "https://", 1)
-    return url
+    # Collapse Java/PHP session-token path params (;jsessionid=..., ;phpsessid=...)
+    # so the same page is never crawled as thousands of unique URLs.
+    return SESSION_PATH.sub("", url)
 
 
 def crude_date(text: str):
@@ -495,6 +528,10 @@ async def crawl():
                 def enqueue(url: str):
                     url = canonicalize(strip_fragment(url))
                     if url in seen or url in attempted or url in pending:
+                        return
+                    # Reject out-of-scope (trap) URLs BEFORE they enter the queue,
+                    # so a trap can never balloon `pending` into millions of entries.
+                    if not fits_scope(url):
                         return
                     pending.add(url)
                     queue.put_nowait(url)

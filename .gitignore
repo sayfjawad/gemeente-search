@@ -15,6 +15,10 @@ stats.sqlite
 data/*/pdfs/
 data/*/embeddings.npy
 data/*/index.sqlite
+# SQLite transient files written mid-ingest/build (never committed)
+data/*/index.sqlite-journal
+data/*/index.sqlite-wal
+data/*/index.sqlite-shm
 data/*/build_index.log
 data/*/ingest.log
 data/*/crawl/*.log
@@ -23,8 +27,8 @@ data/*/crawl/*state*.json
 # data/<slug>/crawl + data/<slug>/pdfs dirs are now symlinks into it.  The 6
 # originally-hand-onboarded municipalities' docs.jsonl are still tracked from
 # before that migration; everything else is re-crawlable and must stay out of git.
-data/*/crawl/
-data/*/pdfs/
+data/*/crawl
+data/*/pdfs
 
 # --- onboarding runtime state (persisted between runs, not source) ---
 scripts/onboarding_queue.json
