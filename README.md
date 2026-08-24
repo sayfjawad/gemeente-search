@@ -156,6 +156,13 @@ GPU-machine en is resumable/fault-tolerant:
   Machine en schrijft hetzelfde `docs.jsonl`-formaat, zodat de rest van de
   pipeline er niets van merkt. Citaties behouden de originele URL; alleen de
   fetch loopt via `web.archive.org`. Gebruikt voor Dalfsen (9126 docs live).
+- **Crawl-trap-afweer**: `crawl.py` weert de vier traps die gemeentelijke sites
+  de frontier laten exploderen — file-transfer portals
+  (`cryptshare.`/`bestand.`/`filetransfer.`-subdomeinen), `;jsessionid=`-session-tokens,
+  en faceted-search/paginatie query-params (`tx_solr`, `chash`, `offset`, …). Die
+  leverden ooit ~1,3M junk-pagina's op over 70 gemeenten; de opruimscripts zijn
+  `scripts/strip_traps.py` (herschrijft `docs.jsonl` minus trap-lines, met backup)
+  en `scripts/reingest_stripped.py` (re-ingest + rebuild van de live gemeenten).
 
 De crawl-output en PDF's staan op de NAS (`/mnt/nas-gemeente/<slug>/`,
 bereikbaar via `data/<slug>/crawl`- en `data/<slug>/pdfs`-symlinks) — zie
