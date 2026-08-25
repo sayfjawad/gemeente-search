@@ -34,6 +34,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import pymupdf as fitz
+import signal
 
 import muni
 
@@ -67,6 +68,20 @@ def split_long(text: str, limit: int = MAX_CHUNK_CHARS) -> list[str]:
         return [text] if text else []
     parts, cur = [], ""
     for sentence in re.split(r"(?<=[.;:])\s+", text):
+        # A "sentence" with no [.;:] at all (e.g. a listing/table page dumped
+        # as one blob) can itself be huge -- seen in practice: a single
+        # Dordrecht page with no punctuation produced one ~1.24M-char
+        # "sentence", which as one unsplit chunk repeatedly stalled the
+        # embedding step for 90+ minutes. Hard-wrap any oversized piece
+        # (independent of the accumulation logic below) so no chunk can ever
+        # come out larger than a small multiple of `limit`.
+        if len(sentence) > limit * 4:
+            for i in range(0, len(sentence), limit):
+                piece = sentence[i:i + limit].strip()
+                if piece:
+                    parts.append(piece)
+            cur = ""
+            continue
         if cur and len(cur) + len(sentence) + 1 > limit:
             parts.append(cur.strip())
             cur = sentence
@@ -77,11 +92,48 @@ def split_long(text: str, limit: int = MAX_CHUNK_CHARS) -> list[str]:
     return parts
 
 
+# Hard cap on pages parsed per PDF. Seen in practice: two 127MB PDFs in
+# Dordrecht's crawl (thousands of pages each) drove chunk_pdf() to grind at
+# ~100% CPU for 2+ hours per ingest attempt -- genuinely compute-bound
+# page-by-page text extraction, not an I/O stall, so a timeout around the
+# whole subprocess (run_step's 6h) never helps in practice. Better to index
+# the first N pages of a monster PDF than let one file stall a municipality
+# indefinitely; N is generous enough that this never bites a normal document.
+MAX_PDF_PAGES = 500
+
+
+PDF_TIMEOUT_S = 45  # hard wall-clock budget per PDF; corrupt/huge scans can make
+# MuPDF spin forever, so skip a PDF that exceeds this instead of hanging ingest.
+MAX_PDF_SIZE_MB = 20  # skip very large scans (annual reports etc.) that make MuPDF
+# render for minutes while holding the GIL (the SIGALRM timeout cannot interrupt it).
+
+
+class _PDFTimeout(Exception):
+    pass
+
+
+def _pdf_timeout_handler(signum, frame):
+    raise _PDFTimeout()
+
+
 def chunk_pdf(path: Path, doc_id: str) -> list[dict]:
     chunks = []
     try:
+        if path.stat().st_size > MAX_PDF_SIZE_MB * 1024 * 1024:
+            print(f"  ! SKIP {path.name}: {path.stat().st_size // 1048576}MB > {MAX_PDF_SIZE_MB}MB", flush=True)
+            return chunks
+    except OSError:
+        pass
+    prev_handler = signal.signal(signal.SIGALRM, _pdf_timeout_handler)
+    signal.alarm(PDF_TIMEOUT_S)
+    try:
         with fitz.open(path) as pdf:
+            n_pages = pdf.page_count
+            if n_pages > MAX_PDF_PAGES:
+                print(f"  ! {path.name}: {n_pages} pages, indexing first {MAX_PDF_PAGES} only", flush=True)
             for pno, page in enumerate(pdf, start=1):
+                if pno > MAX_PDF_PAGES:
+                    break
                 text = page.get_text("text").strip()
                 for piece in split_long(text):
                     if len(piece) >= MIN_TEXT_CHARS:
@@ -93,8 +145,13 @@ def chunk_pdf(path: Path, doc_id: str) -> list[dict]:
                             "bbox_y0": None,
                             "bbox_y1": None,
                         })
+    except _PDFTimeout:
+        print(f"  ! TIMEOUT {path.name} after {PDF_TIMEOUT_S}s: skipping", flush=True)
     except Exception as e:
         print(f"  ! failed to parse {path.name}: {e}", flush=True)
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, prev_handler)
     return chunks
 
 

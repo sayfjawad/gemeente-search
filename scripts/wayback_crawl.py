@@ -27,7 +27,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import muni
-from crawl import html_extract, now_iso  # reuse the exact extraction + id logic
+from crawl import html_extract, now_iso, SKIP_HOST, SKIP_HOST_PORTAL, SKIP_HOST_SEGMENT  # reuse extractor + host-scope filters
 
 CONCURRENCY = int(os.environ.get("WAYBACK_CONCURRENCY", "6"))
 DELAY = float(os.environ.get("WAYBACK_DELAY", "0.2"))
@@ -128,7 +128,8 @@ async def run(slug: str, limit: int, from_year: str | None):
 
     urls = [
         (ts, u) for ts, u in urls
-        if host_of(u) == site.lower() or host_of(u).endswith("." + base)
+        if not (SKIP_HOST.match(host_of(u)) or SKIP_HOST_PORTAL.match(host_of(u)) or SKIP_HOST_SEGMENT.search(host_of(u)))
+        and (host_of(u) == site.lower() or host_of(u).endswith("." + base))
     ]
     if limit:
         urls = urls[:limit]

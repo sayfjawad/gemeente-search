@@ -30,7 +30,7 @@ import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import urljoin, urlparse, parse_qs, unquote
+from urllib.parse import urljoin, urlparse, parse_qs, parse_qsl, urlencode, unquote
 
 import httpx
 import trafilatura
@@ -86,7 +86,7 @@ SKIP_EXT = re.compile(
     r"\.(jpe?g|png|gif|svg|webp|ico|css|js|zip|rar|7z|gz|tgz|mp3|mp4|m4a|avi|mov|wmv|flv|webm|woff2?|ttf|eot)$",
     re.I,
 )
-SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboard|formulier|afspraak)", re.I)
+SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboard|formulier|afspraak|startform|select-idp|styleswitcher|shares|opinion_entries|meningen|prullenbak|evenementen|uitagenda|agenda-en-activiteiten|agenda-algemeen|nieuwsbrieven|nieuwsberichten-archief)", re.I)
 # Interactive citizen-portal / appointment / SSO subdomains generate endless
 # parameterised URLs (mijn.<gemeente>.nl, afspraak.<gemeente>.nl, auth/saml).
 # They are navigation forms, not content — exclude the whole host.
@@ -97,7 +97,11 @@ SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboa
 # product-catalog pages ARE content (seeded from its sitemap, see
 # PRODUCT_SITEMAP); its /formulier/ + /afspraak/ wizard flows are skipped via
 # SKIP_PATH instead.
-SKIP_HOST = re.compile(r"^(mijn|afspraak|formulieren|digitaal|zaak|berichten|open|data|digid|eherkenning|idp|sso|login|account|portal)\d*\.", re.I)
+SKIP_HOST = re.compile(r"^(www\.)?(mijn|afspraak|afspraken|formulieren|digitaal|zaak|zaken|zaaksysteem|berichten|open|data|digid|eherkenning|idp|sso|login|account|portal|onlinestadsgesprek|bouwdossiers|gemeentearchief|archief|stadsarchief|bibliotheek|belastingloket|waardwijzer|sport|uitslagen|sportencultuur|oorlogenvrede)\d*\.", re.I)
+# Library portals often sit on a MIDDLE label (school.bibliotheek.rotterdam.nl,
+# wise-web.bibliotheek.rotterdam.nl, www.bibliotheek.<g>.nl) — the prefix
+# SKIP_HOST misses those. Skip any host carrying a `.bibliotheek.` segment.
+SKIP_HOST_SEGMENT = re.compile(r"\.bibliotheek\d*\.", re.I)
 # File-transfer / secure-messaging portals.  These are login-gated "send a large
 # file" services (Cryptshare, and various "bestand"/"bestandverzenden"/
 # "filetransfer" instances) whose pages are JS session-URLs -- each request gets
@@ -105,7 +109,7 @@ SKIP_HOST = re.compile(r"^(mijn|afspraak|formulieren|digitaal|zaak|berichten|ope
 # with no real municipal content (2026-08-24: cryptshare.delft.nl 217k docs,
 # crypt.apeldoorn.nl 89k, bestand.gemeentebest.nl 60k, filetransfer.gennep.nl
 # 94k, bestandverzenden.leeuwarden.nl 86k, cryptshare.rijswijk.nl 72k, all junk).
-SKIP_HOST_PORTAL = re.compile(r"^(crypt|cryptshare|bestand|bestandverzenden|filetransfer|fileshare|almereconnect)\d*\.", re.I)
+SKIP_HOST_PORTAL = re.compile(r"^(www\.)?(crypt|cryptshare|bestand|bestandverzenden|filetransfer|fileshare|almereconnect)\d*\.", re.I)
 # Session-token path parameters (Java ;jsessionid= / PHP ;phpsessid=).  These
 # turn ONE page into an unbounded number of unique URLs.  We strip them in
 # canonicalize() so the page collapses to its real identity; fits_scope() also
@@ -136,6 +140,23 @@ TRAP_PARAMS = {
 # sportindewijk TYPO3 Solr generated 104k URLs from 180 paths via tx_solr; the
 # `languageswitch` menu did the same on apeldoorn/delft/leeuwarden/best.
 TRAP_PARAM_SUBSTR = ("tx_solr", "languageswitch", "nav_id", "chash", "searchtype")
+# Municipal council activity/agenda calendars enumerate every year/month/day
+# (gemeenteraad.<g>.nl/kalender/{yyyy}/{mm}, plus bare sequential ids) — most
+# combinations are 404s or nav shells, and next/prev links refill the frontier
+# forever (Enkhuizen 2026-08: 130k /kalender/ pages = 97% of the whole crawl).
+# Match only a standalone /kalender/ or /agenda/ segment followed by a digit,
+# so a real /afvalkalender page (waste-collection calendar) is never skipped.
+CALENDAR_TRAP = re.compile(r"/(kalender|agenda)/\d", re.I)
+# Language-switch prefixes: apeldoorn mirrors every page under /ar/ /uk/ /tr/
+# /fr/ /de/ /pl/ /en/ (7 machine translations of the Dutch original) — 137k of
+# 138k crawled URLs. Skip them at the path level (Dutch content stays reachable).
+SKIP_LANG = re.compile(r"^/(ar|uk|tr|fr|de|pl|en|es|it)/", re.I)
+# Council/registry portals (gemeenteraad.<g>.nl, subsidies.<g>.nl) tag the same
+# document/meeting with internal navigation query params (documentId,
+# agendaItemId, categoryId, regulationId) so one page appears under many unique
+# URLs. These params don't change the content, so strip them in canonicalize()
+# (like CDN cache-busters) to collapse the page to its real identity.
+STRIP_QUERY_PARAMS = {"documentid", "agendaitemid", "categoryid", "regulationid"}
 
 
 def now_iso() -> str:
@@ -149,9 +170,15 @@ def fits_scope(url: str) -> bool:
         return False
     host = p.netloc.split(":")[0].lower()
     path = p.path.lower()
-    if SKIP_HOST.match(host) or SKIP_HOST_PORTAL.match(host):
+    if SKIP_HOST.match(host) or SKIP_HOST_PORTAL.match(host) or SKIP_HOST_SEGMENT.search(host):
         return False
     if any(rx.match(path) for rx in SKIP_PATHS):
+        return False
+    if SKIP_PATH.search(path):
+        return False
+    if CALENDAR_TRAP.search(path):
+        return False
+    if SKIP_LANG.search(path):
         return False
     if SESSION_PATH.search(path):
         return False
@@ -194,6 +221,15 @@ def canonicalize(url: str) -> str:
         return url.split("?", 1)[0]
     if p.scheme == "http":
         url = url.replace("http://", "https://", 1)
+    # Strip internal navigation query params (documentId/agendaItemId/…) so the
+    # same council/registry document collapses to one URL instead of one per
+    # (document, agenda-item) combination.
+    if "?" in url:
+        base, _, q = url.partition("?")
+        qs = parse_qsl(q, keep_blank_values=True)
+        kept = [(k, v) for k, v in qs if k.lower() not in STRIP_QUERY_PARAMS]
+        if len(kept) != len(qs):
+            url = base + ("?" + urlencode(kept) if kept else "")
     # Collapse Java/PHP session-token path params (;jsessionid=..., ;phpsessid=...)
     # so the same page is never crawled as thousands of unique URLs.
     return SESSION_PATH.sub("", url)
@@ -568,7 +604,19 @@ async def crawl():
 
                             async with sem:
                                 if PDF_PAT.search(url):
-                                    doc = await fetch_pdf(client, url)
+                                    # fetch_pdf's httpx timeout is per-read, not
+                                    # total -- a server that trickles bytes just
+                                    # inside that window forever never times
+                                    # out. Seen in practice: several municipalities
+                                    # (amersfoort, breda, borger-odoorn,
+                                    # coevorden, deventer, emmen) stalled for
+                                    # 2+ hours on a single PDF each, near-zero
+                                    # CPU (blocked on I/O), same site every
+                                    # retry. Hard wall-clock cap here instead.
+                                    try:
+                                        doc = await asyncio.wait_for(fetch_pdf(client, url), timeout=90)
+                                    except asyncio.TimeoutError:
+                                        doc = None
                                     links: list[str] = []
                                 else:
                                     doc, links = await fetch_html(browser, url)
