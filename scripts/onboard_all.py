@@ -6,7 +6,7 @@ gemeenten_336.json, one at a time. Bulk/blind mode: no per-site CMS
 inspection, no council-archive (Notubiz/iBabs) crawl, no reference curation
 -- just the main-site crawler with whatever defaults muni.py/crawl.py already
 fall back to safely. New municipalities' crawl/ and pdfs/ are created as
-symlinks into the NAS (/mnt/nas-gemeente) from the start, matching the
+symlinks into the NAS (/mnt/gemeente-live) from the start, matching the
 convention used for the 6 already-onboarded municipalities -- never touches
 local disk on the Z8.
 
@@ -31,7 +31,7 @@ SOURCE_LIST = REPO / "scripts" / "gemeenten_336.json"
 QUEUE_PATH = REPO / "scripts" / "onboarding_queue.json"
 REGISTRY_PATH = REPO / "municipalities.json"
 LOG = REPO / "scripts" / "onboard_all.log"
-NAS_ROOT = Path("/mnt/nas-gemeente")
+NAS_ROOT = Path("/mnt/gemeente-live")
 PY = str(REPO / ".venv" / "bin" / "python3")
 
 

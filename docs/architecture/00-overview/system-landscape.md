@@ -1,5 +1,9 @@
 # Systeemlandschap
 
+> **Stand 2026-09-25:** de app draait op **`c4130-4xp100`** (datacenter), niet meer op de Z8 of
+> `c4130-4xv100`. Indexen staan op `/data` (NVMe), crawl/PDF's op de NAS (`/mnt/gemeente-live`).
+> Zie [ADR-015](../07-decision-records/ADR-015-c4130-4xp100-en-opslagindeling.md).
+
 `gemeente-search` staat niet op zichzelf: het is lid van een **familie van
 GPU-backed zoekapplicaties** op dit account, die bewust dezelfde architectuur
 en infrastructuur delen.
