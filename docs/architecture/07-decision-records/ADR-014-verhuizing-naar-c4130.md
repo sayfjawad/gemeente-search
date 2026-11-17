@@ -1,6 +1,6 @@
 # ADR: 014 - Permanente verhuizing naar c4130-4xv100 (GPT-OSS-120B, 3× V100)
 
-* **Status:** Accepted
+* **Status:** Superseded door [ADR-016](ADR-016-qwen-op-c4130-via-vllm.md)
 * **Datum:** 2026-08-23
 * **Auteur:** Sayf (met Claude)
 
@@ -20,7 +20,7 @@ permanente, lokale vervanger beschikbaar voor `/api/ask`.
 ## 2. Besluit
 
 `gemeente-search/.env` omgezet naar
-`LLM_BASE_URL=http://100.64.0.13:8080/v1`, `LLM_MODEL=gpt-oss-120b` — zelfde
+`LLM_BASE_URL=http://100.64.x.x:8080/v1`, `LLM_MODEL=gpt-oss-120b` — zelfde
 model als voorheen op gx10 (zie ADR-004), nu geserveerd vanaf `c4130-4xv100`
 in plaats van gx10. Het DeepSeek-blok blijft uitgecommentarieerd in `.env`
 staan als terugvalpad. Geen codewijziging nodig: `call_llm()` was al

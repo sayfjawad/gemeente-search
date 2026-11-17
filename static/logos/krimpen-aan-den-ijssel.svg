@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   version="1.0"
+   width="600"
+   height="660"
+   id="svg2">
+  <desc
+     id="desc4">Flag of Canton of Valais (Wallis)</desc>
+  <defs
+     id="defs6">
+    <linearGradient
+       id="linearGradient2893">
+      <stop
+         style="stop-color:white;stop-opacity:0.3137255"
+         offset="0"
+         id="stop2895" />
+      <stop
+         style="stop-color:white;stop-opacity:0.25098041"
+         offset="0.19"
+         id="stop2897" />
+      <stop
+         style="stop-color:#6b6b6b;stop-opacity:0.1254902"
+         offset="0.60000002"
+         id="stop2901" />
+      <stop
+         style="stop-color:black;stop-opacity:0.1254902"
+         offset="1"
+         id="stop2899" />
+    </linearGradient>
+    <radialGradient
+       cx="203.19754"
+       cy="218.01039"
+       r="300"
+       fx="203.19754"
+       fy="218.01039"
+       id="radialGradient2883"
+       xlink:href="#linearGradient2893"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(1.360018,0,0,1.355087,-79.5275,-87.64524)" />
+    <linearGradient
+       id="linearGradient2955">
+      <stop
+         style="stop-color:white;stop-opacity:0"
+         offset="0"
+         id="stop2965" />
+      <stop
+         style="stop-color:black;stop-opacity:0.64583331"
+         offset="1"
+         id="stop2959" />
+    </linearGradient>
+    <radialGradient
+       cx="225.52438"
+       cy="218.90099"
+       r="300"
+       fx="225.52438"
+       fy="218.90099"
+       id="radialGradient2961"
+       xlink:href="#linearGradient2955"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(-4.167939e-4,2.182867,-1.884232,-3.599562e-4,615.5972,-289.1214)" />
+    <polygon
+       points="0,-1 0.58778525,0.80901699 -0.95105652,-0.30901699 0.95105652,-0.30901699 -0.58778525,0.80901699 0,-1 "
+       transform="scale(53,53)"
+       id="star" />
+    <clipPath
+       id="clip">
+      <path
+         d="M 0,-200 L 0,600 L 300,600 L 300,-200 L 0,-200 z "
+         id="path10" />
+    </clipPath>
+    <radialGradient
+       cx="225.52438"
+       cy="218.90099"
+       r="300"
+       fx="225.52438"
+       fy="218.90099"
+       id="radialGradient1911"
+       xlink:href="#linearGradient2955"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(-4.167939e-4,2.182867,-1.884232,-3.599562e-4,1395.597,-309.1214)" />
+    <radialGradient
+       cx="-483.50824"
+       cy="153.9283"
+       r="300.00003"
+       fx="-483.50824"
+       fy="153.9283"
+       id="radialGradient2928"
+       xlink:href="#linearGradient2955"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(0,2.342476,-2.291353,0,562.9126,1323.77)" />
+    <radialGradient
+       cx="285.18573"
+       cy="200.44757"
+       r="300"
+       fx="285.18573"
+       fy="200.44757"
+       id="radialGradient11919"
+       xlink:href="#linearGradient2893"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="matrix(1.551284,0,0,1.350335,-227.8943,-51.2635)" />
+  </defs>
+  <g
+     id="layer1">
+    <path
+       d="M 299.99993,658.49936 C 299.99993,619.9953 331.2031,588.7457 369.64989,588.7457 C 408.09669,588.7457 490.40303,588.7457 528.84981,588.7457 C 567.29661,588.7457 598.49989,557.49612 598.49989,518.99215 L 598.49989,1.4996597 L 1.5000104,1.4996796 L 1.5000005,518.99215 C 1.5000005,557.49612 32.703199,588.7457 71.149994,588.7457 C 109.5968,588.7457 191.90315,588.7457 230.34995,588.7457 C 268.79674,588.7457 299.99993,619.9953 299.99993,658.49936 z "
+       style="fill:white;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dashoffset:0;stroke-opacity:1"
+       id="path2014" />
+    <path
+       d="M 258.49996,80.71338 C 235.23851,46.14534 195.75954,23.39255 151.00214,23.39255 C 79.522483,23.39255 21.5,81.43816 21.5,152.9462 C 21.5,224.45445 79.522435,282.49991 151.00214,282.5 C 195.73994,282.5 235.19508,259.72167 258.46054,225.17912 C 240.35083,242.72927 215.68982,253.58311 188.50414,253.58311 C 132.97568,253.58311 87.907307,208.49689 87.907307,152.9462 C 87.907297,97.39572 132.97564,52.309393 188.50414,52.309393 C 215.7066,52.309393 240.38722,63.144047 258.49996,80.71338 z "
+       style="fill:#101010;fill-opacity:1;fill-rule:evenodd;stroke:black;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;display:inline"
+       id="path4008" />
+    <use
+       transform="translate(315.0186,0)"
+       id="use4012"
+       x="0"
+       y="0"
+       width="600"
+       height="660"
+       xlink:href="#path4008" />
+    <use
+       transform="translate(155,286.3589)"
+       id="use4014"
+       x="0"
+       y="0"
+       width="600"
+       height="660"
+       xlink:href="#path4008" />
+  </g>
+  <g
+     id="layer2" />
+  <g
+     id="layer3">
+    <path
+       d="M 1.5,1.49974 L 1.5,518.99107 C 1.5,557.49556 32.7031,588.7456 71.15,588.7456 C 109.5968,588.7456 191.9032,588.7456 230.35,588.7456 C 268.79691,588.7455 300.00003,619.99554 300.00003,658.5 C 300.00003,619.99554 331.20317,588.7456 369.64997,588.7456 C 408.09687,588.7455 490.40327,588.7456 528.85007,588.7456 C 567.29687,588.7456 598.50007,557.49556 598.50007,518.99107 L 598.50007,1.49974 L 1.5,1.49974 z "
+       style="fill:url(#radialGradient11919);fill-opacity:1;fill-rule:evenodd;stroke:none;stroke-width:3.00000024;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="path2875" />
+  </g>
+  <g
+     id="layer4">
+    <path
+       d="M 300.00003,658.5 C 300.00003,619.9959 331.20322,588.74628 369.65003,588.74628 C 408.09684,588.74628 490.40321,588.74628 528.85001,588.74628 C 567.29681,588.74628 598.50011,557.49666 598.50011,518.99266 L 598.50011,1.4996809 L 1.5000099,1.4997008 L 1.5,518.99266 C 1.5,557.49666 32.70321,588.74628 71.150019,588.74628 C 109.59684,588.74628 191.90322,588.74628 230.35003,588.74628 C 268.79684,588.74628 300.00003,619.9959 300.00003,658.5 z "
+       style="fill:none;fill-opacity:1;fill-rule:nonzero;stroke:black;stroke-width:3.00000191;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1"
+       id="path1572" />
+  </g>
+</svg>

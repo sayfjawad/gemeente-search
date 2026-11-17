@@ -6,7 +6,7 @@ gemeenten_336.json. Bulk/blind mode: no per-site CMS inspection, no
 council-archive (Notubiz/iBabs) crawl, no reference curation -- just the
 main-site crawler with whatever defaults muni.py/crawl.py already fall back
 to safely. New municipalities' crawl/ and pdfs/ are created as symlinks into
-the NAS (/mnt/nas-gemeente) from the start, matching the convention used for
+the NAS (/mnt/gemeente-live) from the start, matching the convention used for
 the 6 already-onboarded municipalities -- never touches local disk on the Z8.
 
 Pipelined, not strictly sequential (since 2026-08-23): crawling (own site,
@@ -46,7 +46,7 @@ SOURCE_LIST = REPO / "scripts" / "gemeenten_336.json"
 QUEUE_PATH = REPO / "scripts" / "onboarding_queue.json"
 REGISTRY_PATH = REPO / "municipalities.json"
 LOG = REPO / "scripts" / "onboard_all.log"
-NAS_ROOT = Path("/mnt/nas-gemeente")
+NAS_ROOT = Path("/mnt/gemeente-live")
 PY = str(REPO / ".venv" / "bin" / "python3")
 
 # How many municipalities crawl concurrently, and how many run
@@ -287,16 +287,83 @@ def upsert_registry_entry(entry: dict) -> None:
         save_registry(entries)
 
 
-def run_step(name: str, slug: str, *args: str) -> tuple[bool, str]:
+def _tail_lines(path: Path, n: int = 25) -> str:
+    try:
+        with open(path, encoding="utf-8", errors="replace") as f:
+            return "\n".join(f.read().splitlines()[-n:])
+    except Exception:
+        return ""
+
+
+def _crawl_progress_marker(slug: str):
+    """mtime of docs.jsonl -- used to detect a crawl that's gone silent
+    (blocked in the browser/network layer with no timeout catching it,
+    not doing more work) vs. one that's still genuinely writing."""
+    p = NAS_ROOT / slug / "crawl" / "docs.jsonl"
+    try:
+        return p.stat().st_mtime
+    except FileNotFoundError:
+        return None
+
+
+def run_step(
+    name: str, slug: str, *args: str,
+    stall_check=None, stall_timeout: int = 1800, hard_timeout: int = 6 * 3600,
+) -> tuple[bool, str]:
+    """Run one pipeline step as a subprocess, watched by two independent
+    ceilings instead of just subprocess.run's single blocking timeout:
+
+    - hard_timeout: absolute wall-clock cap (unchanged behavior, was the
+      only limit before).
+    - stall_timeout + stall_check: if given, stall_check() is polled
+      periodically and compared to its last value; if it hasn't changed in
+      stall_timeout seconds the subprocess is killed as "stalled" even
+      though hard_timeout hasn't been hit yet. Added 2026-08-25 after
+      repeatedly finding crawl.py processes blocked for 2+ hours at ~0% CPU
+      (a wedged Playwright browser subprocess, judging by strace showing
+      epoll_wait/wait4 with no data -- not one specific fixable root cause,
+      the per-request timeouts in crawl.py just don't cover this failure
+      mode) while docs.jsonl sat untouched. A stalled step is reported as
+      failed with 'stalled' in the message so it reads differently from a
+      genuine data/site problem -- always safe to retry (crawl.py resumes
+      from state.json; ingest/build_index just redo cheap local work).
+    """
     cmd = [PY, name, "--municipality", slug, *args]
     log(f"  -> {' '.join(cmd)}")
+    log_path = REPO / "scripts" / f".step_{slug}_{name.replace('.py', '')}_{os.getpid()}_{threading.get_ident()}.log"
+    start = time.time()
+    last_progress = start
+    last_marker = stall_check() if stall_check else None
     try:
-        r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, timeout=6 * 3600)
-    except subprocess.TimeoutExpired:
-        return False, f"{name} timed out after 6h"
-    tail = "\n".join((r.stdout + r.stderr).splitlines()[-25:])
-    if r.returncode != 0:
-        return False, f"{name} exit {r.returncode}:\n{tail}"
+        with open(log_path, "w") as logf:
+            proc = subprocess.Popen(cmd, cwd=REPO, stdout=logf, stderr=subprocess.STDOUT, text=True)
+            while True:
+                ret = proc.poll()
+                now = time.time()
+                if stall_check is not None:
+                    marker = stall_check()
+                    if marker != last_marker:
+                        last_marker = marker
+                        last_progress = now
+                if ret is not None:
+                    break
+                if now - start > hard_timeout:
+                    proc.kill()
+                    proc.wait(timeout=15)
+                    return False, f"{name} timed out after {hard_timeout // 3600}h:\n{_tail_lines(log_path)}"
+                if stall_check is not None and now - last_progress > stall_timeout:
+                    proc.kill()
+                    proc.wait(timeout=15)
+                    return False, (
+                        f"{name} stalled: no progress for {stall_timeout // 60}min "
+                        f"(killed, safe to retry):\n{_tail_lines(log_path)}"
+                    )
+                time.sleep(15)
+        tail = _tail_lines(log_path)
+    finally:
+        log_path.unlink(missing_ok=True)
+    if proc.returncode != 0:
+        return False, f"{name} exit {proc.returncode}:\n{tail}"
     log(f"  ok: {tail.splitlines()[-1] if tail else ''}")
     return True, tail
 
@@ -379,7 +446,10 @@ def crawl_one(item: dict) -> bool:
     upsert_registry_entry(entry)
     ensure_nas_symlinks(slug)
 
-    ok, detail = run_step("crawl.py", slug)
+    ok, detail = run_step(
+        "crawl.py", slug,
+        stall_check=lambda: _crawl_progress_marker(slug), stall_timeout=1800,
+    )
     if not ok:
         item["status"] = "failed"
         item["error"] = f"crawl: {detail}"
@@ -410,8 +480,13 @@ def finish_one(item: dict, total: int) -> None:
     start_ts = time.time()
     crawl_duration = item.get("crawl_duration_s", 0)
 
+    # ingest/build_index have no natural incremental-progress file to watch
+    # (index.sqlite is written once at the end), so no stall_check -- but
+    # they should never legitimately take anywhere near 6h (even Eindhoven's
+    # 130k chunks took ~11 min), so a much shorter hard ceiling than the
+    # crawl step's catches a hang without needing a progress marker.
     for step_name, script in (("ingest", "ingest.py"), ("build_index", "build_index.py")):
-        ok, detail = run_step(script, slug)
+        ok, detail = run_step(script, slug, hard_timeout=5400)
         if not ok:
             item["status"] = "failed"
             item["error"] = f"{step_name}: {detail}"

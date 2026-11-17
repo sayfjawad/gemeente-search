@@ -1,94 +1,77 @@
-# LLM-node — GPT-OSS-120B op c4130-4xv100
+# LLM-node — Qwen3.8-27B op vLLM (C4130)
 
-Dit is de kern van het antwoordgenereren. De keuze voor GPT-OSS-120B is
-beargumenteerd in [ADR-004](../07-decision-records/ADR-004-gpt-oss-120b-llama-cpp.md)
-en berust op de `gx10-llm-benchmarks`. **De node zelf is sindsdien gewijzigd**:
-oorspronkelijk gx10, sinds 2026-08-23 `c4130-4xv100` — zie
-[ADR-013](../07-decision-records/ADR-013-deepseek-tijdelijke-failover.md) (de
-tussenliggende DeepSeek-periode) en
-[ADR-014](../07-decision-records/ADR-014-verhuizing-naar-c4130.md) (de
-permanente verhuizing). Wat hieronder staat beschrijft de huidige
-c4130-situatie; de gx10-hardwareparagraaf is ter historie bewaard onderaan.
+Dit is de kern van het antwoordgenereren. Het huidige model en de huidige
+node staan in [ADR-016](../07-decision-records/ADR-016-qwen-op-c4130-via-vllm.md).
+De historie (GPT-OSS-120B op gx10 → DeepSeek → GPT-OSS-120B op
+`c4130-4xv100` → DeepSeek → Qwen3.8-27B) staat onderaan.
 
-## Huidige hardware: c4130-4xv100
+## Huidige situatie (sinds 2026-10-10)
 
-`c4130-4xv100` (Dell PowerEdge C4130, Tailscale `100.64.0.13`) heeft:
+| Aspect | Waarde |
+|---|---|
+| Model | **Qwen3.8-27B**, NVFP4-kwantisatie + DFlash2 (speculative decoding) |
+| Engine | **vLLM** (V100-build), tensor-parallel over 4× V100-SXM2-32GB |
+| Context | 262K tokens |
+| Endpoint | OpenAI-compatibel, `http://127.0.0.1:8080/v1` (app draait op dezelfde host) |
+| Model-id | `qwen3.8-27b` |
+| Gedeeld met | scrib-r, de andere zoekapps en de interne agents |
 
-- **4× NVIDIA Tesla V100-SXM2-32GB**, onderling verbonden met **NVLink,
-  300 GB/s**,
-- GPT-OSS-120B draait verdeeld over **3 van de 4 kaarten** (GPU 1, 2, 3) via
-  llama.cpp's `--tensor-split`; de vierde kaart (GPU 0) is dedicated aan
-  scrib-r's whisperx-transcriptie, bewust gescheiden om GPU-contentie tussen
-  transcriptie en het taalmodel te vermijden (zie scrib-r's eigen
-  ADR-009 voor de volledige afweging, inclusief een verworpen 4-kaarten-variant).
-- Live gemeten doorvoer tijdens de migratie: **~102 tokens/s** (korte test,
-  geen formele benchmark) — sneller dan de eerder gemeten 53,4 t/s op gx10,
-  al is dat geen apples-to-appels vergelijking (andere hardware-klasse,
-  geen herhaald benchmark op c4130 zelf).
+De LLM-dienst wordt buiten deze repo beheerd. `gemeente-search` is alleen
+een consument: alles wat de app nodig heeft is `LLM_BASE_URL`, `LLM_MODEL`
+en `LLM_API_KEY` in `.env`.
 
-## Het gekozen model: GPT-OSS-120B (ongewijzigd)
+## Configuratie in `app.py` (`call_llm()`)
 
-- **Herkomst**: OpenAI, Mixture-of-Experts, 5,1 B actief / 117 B totaal.
-- **Kwantisatie**: `UD-Q4_K_XL`, ~**63 GB** op schijf (bestand:
-  `gpt-oss-120b-UD-Q4_K_XL-00001/2-of-00002.gguf`, rechtstreeks van
-  HuggingFace (`unsloth/gpt-oss-120b-GGUF`) naar c4130 gehaald, niet
-  overgezet vanaf gx10).
-- **Inference-engine**: llama.cpp, geëxposeerd als OpenAI-compatible
-  `/v1/chat/completions` op **`100.64.0.13:8080`** (was `100.64.x.x:8083` op
-  gx10) — bewust gepubliceerd op het tailnet-IP (niet `0.0.0.0`) zodat ook
-  andere apps op het tailnet (`wilders-search`/`yesilgoz-search`) dezelfde
-  node kunnen gebruiken.
+- `max_tokens = 1800`, met één retry op `6000` als het antwoord leeg terugkomt
+  omdat het budget op is (zie ADR-013), `temperature = 0.2`.
+- `chat_template_kwargs: {enable_thinking: false}`: bij Qwen3 zet dit de
+  reasoning-fase uit, zodat het hele budget naar `content` gaat. Dat is
+  precies wat de vlag hoort te doen. Bij GPT-OSS werd hij genegeerd (zie
+  ADR-014 §2).
+- CJK-haakjes worden genormaliseerd naar ASCII, zodat de `[n]`-citaten
+  betrouwbaar geparsed worden.
+- Prompt-budgetten (`MAX_TOTAL_SOURCE_CHARS = 8200`,
+  `MAX_SOURCES_IN_CONTEXT = 16`, `COMPARE_MAX_MUNIS = 8`) zijn nog afgestemd
+  op een context van 4096 tokens. Dat werkt, maar benut de 262K niet (open
+  vervolgactie, ADR-016 §6).
 
-## Configuratie in `app.py` — en een correctie op de oorspronkelijke aanname
+## Terugvalpad
 
-- `max_tokens = 1800` (met een retry naar `6000` bij een lege,
-  budget-uitgeputte respons — zie ADR-013), `temperature = 0.2`.
-- **De `chat_template_kwargs: {enable_thinking: false}`-vlag uit ADR-004 is
-  géén universeel GPT-OSS/harmony-mechanisme** — dat bleek pas tijdens de
-  DeepSeek-periode (ADR-013) en is expliciet vastgelegd in ADR-014 §2. Het
-  is de Qwen/Nemotron-conventie. Voor GPT-OSS-120B's harmony-formaat is het
-  correcte sturingsmechanisme **`reasoning_effort`** (`low`/`medium`/`high`)
-  als apart veld in het request-JSON — bevestigd via een live test tijdens
-  de c4130-migratie (`reasoning_effort: "low"` hield het antwoord kort en
-  `content` bleef gevuld). `gemeente-search` stuurt dit veld nog niet mee
-  (open vervolgactie, zie ADR-014 §6); de bestaande `enable_thinking`-vlag
-  wordt door de server simpelweg genegeerd, en de retry-logica vangt de
-  resterende gevallen op waarin het model toch te veel denkt.
-- Normalisatie van CJK-haakjes naar ASCII zodat de `[n]`-citaten van het
-  model betrouwbaar geparsed kunnen worden.
+Valt de lokale dienst weg, dan kan elke OpenAI-compatibele provider worden
+gebruikt. Het geteste pad is de DeepSeek API:
+
+```
+LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_MODEL=deepseek-v4-pro
+LLM_API_KEY=<eigen key>
+```
+
+Dan de service herstarten. Let op: vragen van burgers gaan dan naar een
+externe provider (zie [ADR-013](../07-decision-records/ADR-013-deepseek-tijdelijke-failover.md)).
 
 ## Mogelijkheden en beperkingen
 
 | Aspect | Mogelijkheid | Beperking |
 |---|---|---|
-| Nederlands | Sterk, coherent, citeert correct als de prompt het eist | Hallucinatie zonder bron blijft mogelijk |
-| Snelheid | ~102 t/s op c4130, geen API-kosten | Geen formele herhaalde benchmark op c4130 |
-| Context | 4096 tokens (n_ctx) bruikbaar | Beperkt bronnen per antwoord (zie 05) |
-| Reasoning | Zet logisch stappen | Correcte sturing is `reasoning_effort`, niet (meer verondersteld) `enable_thinking` |
-| Kwantisatie | 63 GB past ruim binnen c4130's 3×32GB | Te ver kwantiseren kost kwaliteit |
-| Privacy | Queries verlaten het tailnet niet (lokaal) | Beheerlast van model + c4130, nu gedeeld met meerdere apps |
-| Gedeelde node | Eén node voor scrib-r, abo-ali-search, wilders/yesilgoz-search én dit project | Grotere blast radius bij een storing dan een dedicated node |
+| Nederlands | Sterk, citeert correct als de prompt het eist | Hallucinatie zonder bron blijft mogelijk |
+| Context | 262K tokens | App-budgetten benutten dit nog niet |
+| Privacy | Vragen verlaten de eigen infrastructuur niet | Geldt niet in de DeepSeek-terugval |
+| Kosten | Geen per-token kosten | Beheer van GPU-host en model (gedeeld) |
+| Gedeelde node | Eén dienst voor alle apps | Drukte bij andere consumenten raakt de latency |
 
-## Historie: gx10-hardware (2026-08-21 t/m 2026-08-23, gepensioneerd)
+## Historie
 
-De gx10 (NVIDIA DGX Spark-klasse, ASUS Ascent GX10) had:
+| Periode | Model | Node | ADR |
+|---|---|---|---|
+| tot 2026-08-21 | GPT-OSS-120B (llama.cpp, `UD-Q4_K_XL`) | gx10 (GB10, 128 GB unified) | [ADR-004](../07-decision-records/ADR-004-gpt-oss-120b-llama-cpp.md) |
+| 2026-08-21 → 08-23 | DeepSeek API | extern | [ADR-013](../07-decision-records/ADR-013-deepseek-tijdelijke-failover.md) |
+| 2026-08-23 → 09-10 | GPT-OSS-120B (llama.cpp, 3× V100) | `c4130-4xv100` (verkocht 2026-09-11) | [ADR-014](../07-decision-records/ADR-014-verhuizing-naar-c4130.md) |
+| 2026-09-10 → 10-10 | DeepSeek API (`deepseek-v4-pro`) | extern | [ADR-016](../07-decision-records/ADR-016-qwen-op-c4130-via-vllm.md) §1 |
+| sinds 2026-10-10 | Qwen3.8-27B (vLLM) | nieuwe C4130 (datacenter) | [ADR-016](../07-decision-records/ADR-016-qwen-op-c4130-via-vllm.md) |
 
-- **GB10 Grace Blackwell Superchip**, 128 GB unified memory (~124,5 GB GPU),
-- ~**273 GB/s** geheugenbandbreedte,
-- SM 12.1.
-
-Inferentie op zo'n node is memory-bandwidth-bound: tokens per seconde zijn
-ruwweg `bandbreedte ÷ grootte-van-het-actieve-model-in-GB`. GPT-OSS-120B
-haalde daar (als MoE, ~5,1 GB actief van 117 GB) ~50 t/s. Verkocht
-2026-08-24 — zie ADR-013/ADR-014 voor de aanleiding en opvolging.
-
-### Overwogen alternatieven (oorspronkelijke gx10-benchmark, blijft relevant)
-
-- **Nemotron-3.5-Lightning-30B-A3B** (58,1 t/s, 35 GB): runner-up, ook MoE;
-  vereist eveneens `enable_thinking:false` (deze conventie klopt wél voor
-  dit modelfamilie).
-- **Gemma 4 31B**: perfecte scores maar slechts 6,4 t/s (dense) — afgevallen
-  op snelheid.
+De oorspronkelijke modelkeuze kwam uit een benchmark op gx10.
+GPT-OSS-120B (MoE, 5,1 B actief) haalde daar ~50 tokens/s. Een dens model van
+vergelijkbare kwaliteit (Gemma 4 31B) haalde 6,4 t/s en viel af op snelheid.
 
 Zie [05-cross-cutting-concerns/rag-and-context-window.md](../05-cross-cutting-concerns/rag-and-context-window.md)
 voor hoe het contextvenster wordt beheerd.

@@ -6,38 +6,73 @@
 <title>Slimme Gemeente Assistent</title>
 <style>
 :root{
-  --bg:#f5f7fa; --panel:#ffffff; --ink:#0f172a; --muted:#64748b;
+  --bg:#eef1f8;
+  --bg-grad:radial-gradient(1100px 480px at 12% -10%,rgba(37,99,235,.12),transparent 60%),
+    radial-gradient(900px 460px at 100% 0%,rgba(59,130,246,.10),transparent 55%),
+    linear-gradient(180deg,#eef1f8 0%,#e6eaf6 100%);
+  --panel:rgba(255,255,255,.86); --panel-solid:linear-gradient(160deg,#ffffff,#f3f5fb);
+  --input-bg:#ffffff;
+  --ink:#0f172a; --muted:#64748b;
   --accent:#2563eb; --accent-strong:#1d4ed8; --accent-soft:#dbeafe; --on-accent:#ffffff;
-  --border:#e2e8f0; --ok:#16a34a; --warn:#d97706;
+  --accent-rgb:37,99,235;
+  --border:rgba(15,23,42,.10); --border-bright:rgba(37,99,235,.42);
+  --ok:#16a34a; --warn:#d97706;
   --hero-from:#1d4ed8; --hero-to:#3b82f6;
-  --shadow:0 8px 24px rgba(15,23,42,.10);
+  --shadow:0 18px 40px rgba(30,41,59,.14),0 2px 6px rgba(30,41,59,.06);
+  --btn-glow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 24px -6px rgba(37,99,235,.45);
+  --btn-glow-hover:inset 0 1px 0 rgba(255,255,255,.4),0 14px 30px -6px rgba(37,99,235,.55);
 }
 :root[data-theme="dark"]{
-  --bg:#0b1220; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8;
-  --accent:#3b82f6; --accent-strong:#60a5fa; --accent-soft:#1e293b; --on-accent:#ffffff;
-  --border:#1f2937; --ok:#22c55e; --warn:#f59e0b;
-  --hero-from:#172554; --hero-to:#1e40af;
-  --shadow:0 8px 24px rgba(0,0,0,.45);
+  --bg:#070b14;
+  --bg-grad:radial-gradient(1100px 500px at 12% -10%,rgba(59,130,246,.18),transparent 60%),
+    radial-gradient(900px 460px at 100% 0%,rgba(96,165,250,.10),transparent 55%),
+    linear-gradient(180deg,#060911 0%,#0a0f1c 45%,#070b14 100%);
+  --panel:rgba(17,24,39,.72); --panel-solid:linear-gradient(160deg,rgba(22,30,46,.96),rgba(12,18,29,.98));
+  --input-bg:rgba(9,14,23,.9);
+  --ink:#e5e7eb; --muted:#94a3b8;
+  --accent:#60a5fa; --accent-strong:#93c5fd; --accent-soft:#1e293b; --on-accent:#08101f;
+  --accent-rgb:96,165,250;
+  --border:rgba(148,180,224,.16); --border-bright:rgba(147,197,253,.5);
+  --ok:#22c55e; --warn:#f59e0b;
+  --hero-from:#0c1c46; --hero-to:#1e3a8a;
+  --shadow:0 24px 60px rgba(0,0,0,.6),0 0 0 1px rgba(96,165,250,.04);
+  --btn-glow:inset 0 1px 0 rgba(255,255,255,.18),0 0 26px rgba(96,165,250,.35);
+  --btn-glow-hover:inset 0 1px 0 rgba(255,255,255,.24),0 0 36px rgba(96,165,250,.48);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#0b1220; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8;
-    --accent:#3b82f6; --accent-strong:#60a5fa; --accent-soft:#1e293b; --on-accent:#ffffff;
-    --border:#1f2937; --ok:#22c55e; --warn:#f59e0b;
-    --hero-from:#172554; --hero-to:#1e40af;
-    --shadow:0 8px 24px rgba(0,0,0,.45);
+    --bg:#070b14;
+    --bg-grad:radial-gradient(1100px 500px at 12% -10%,rgba(59,130,246,.18),transparent 60%),
+      radial-gradient(900px 460px at 100% 0%,rgba(96,165,250,.10),transparent 55%),
+      linear-gradient(180deg,#060911 0%,#0a0f1c 45%,#070b14 100%);
+    --panel:rgba(17,24,39,.72); --panel-solid:linear-gradient(160deg,rgba(22,30,46,.96),rgba(12,18,29,.98));
+    --input-bg:rgba(9,14,23,.9);
+    --ink:#e5e7eb; --muted:#94a3b8;
+    --accent:#60a5fa; --accent-strong:#93c5fd; --accent-soft:#1e293b; --on-accent:#08101f;
+    --accent-rgb:96,165,250;
+    --border:rgba(148,180,224,.16); --border-bright:rgba(147,197,253,.5);
+    --ok:#22c55e; --warn:#f59e0b;
+    --hero-from:#0c1c46; --hero-to:#1e3a8a;
+    --shadow:0 24px 60px rgba(0,0,0,.6),0 0 0 1px rgba(96,165,250,.04);
+    --btn-glow:inset 0 1px 0 rgba(255,255,255,.18),0 0 26px rgba(96,165,250,.35);
+    --btn-glow-hover:inset 0 1px 0 rgba(255,255,255,.24),0 0 36px rgba(96,165,250,.48);
   }
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);
-  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.6}
+body{margin:0;background:var(--bg-grad);background-color:var(--bg);color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.6;min-height:100vh}
 .wrap{max-width:920px;margin:0 auto;padding:16px 16px 60px}
 
 header.hero{position:relative;border-radius:16px;overflow:hidden;margin-bottom:20px;
   padding:26px 24px;min-height:150px;display:flex;align-items:center;
-  color:#fff;background-image:linear-gradient(135deg,var(--hero-from) 0%,var(--hero-to) 100%);
+  color:#fff;
+  background-image:linear-gradient(135deg,color-mix(in srgb,var(--hero-from) 86%,transparent) 0%,color-mix(in srgb,var(--hero-to) 78%,transparent) 100%),
+    url('/img/hero-gemeentebalie.jpg');
+  background-size:cover;background-position:center 25%;background-repeat:no-repeat;
   box-shadow:var(--shadow)}
 header.hero .hero-text{max-width:680px}
+header.hero .kicker{display:inline-block;font-size:.76rem;letter-spacing:.06em;text-transform:uppercase;
+  background:rgba(255,255,255,.16);padding:3px 11px;border-radius:999px;margin-bottom:10px}
 header.hero h1{font-size:1.6rem;margin:0 0 8px;font-weight:800;letter-spacing:-.01em}
 header.hero p{margin:0;color:rgba(255,255,255,.9);font-size:.98rem;max-width:600px}
 .theme-toggle{position:absolute;top:14px;right:14px;width:42px;height:42px;border-radius:50%;
@@ -45,14 +80,10 @@ header.hero p{margin:0;color:rgba(255,255,255,.9);font-size:.98rem;max-width:600
   font-size:1.15rem;cursor:pointer;backdrop-filter:blur(4px);line-height:1}
 .theme-toggle:hover{background:rgba(255,255,255,.28)}
 
-.tabs{display:flex;gap:8px;margin-bottom:14px}
-.tabs button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);
-  background:var(--panel);color:var(--ink);font-weight:600;cursor:pointer;font-size:.95rem}
-.tabs button.active{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;
-  box-shadow:0 1px 2px rgba(15,23,42,.04)}
-.muni-panel{padding:14px 16px;margin-bottom:14px}
+  box-shadow:var(--shadow);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.muni-panel{padding:14px 16px;margin-bottom:14px;position:relative;z-index:5}
 .muni-label{display:block;font-size:.8rem;font-weight:700;color:var(--muted);margin-bottom:8px}
 .muni-row{display:flex;align-items:center;gap:12px}
 .muni-logo{flex:0 0 auto;width:42px;height:42px;border-radius:10px;background:#fff;
@@ -61,10 +92,10 @@ header.hero p{margin:0;color:rgba(255,255,255,.9);font-size:.98rem;max-width:600
 .muni-logo img{max-width:82%;max-height:82%;object-fit:contain}
 .combobox{position:relative;flex:1}
 .combobox input{width:100%;padding:10px 14px;font-size:1rem;border:1px solid var(--border);
-  border-radius:10px;background:var(--bg);color:var(--ink)}
-.combobox input:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
-.cb-list{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel);
-  border:1px solid var(--border);border-radius:10px;max-height:300px;overflow-y:auto;
+  border-radius:10px;background:var(--input-bg);color:var(--ink);transition:box-shadow .15s ease,border-color .15s ease}
+.combobox input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.25)}
+.cb-list{position:absolute;top:calc(100% + 6px);left:0;right:0;background:var(--panel-solid);
+  border:1px solid var(--border-bright);border-radius:10px;max-height:300px;overflow-y:auto;
   box-shadow:var(--shadow);z-index:10;display:none}
 .cb-list.open{display:block}
 .cb-option{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer}
@@ -74,18 +105,28 @@ header.hero p{margin:0;color:rgba(255,255,255,.9);font-size:.98rem;max-width:600
 .cb-option span{font-weight:600}
 .cb-empty{padding:10px 12px;color:var(--muted);font-size:.9rem}
 
-.searchbar{display:flex;gap:8px;flex-wrap:wrap}
-.searchbar textarea{flex:1;min-width:240px;padding:12px 14px;font-size:1rem;
-  border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--ink);
-  font-family:inherit;resize:vertical;min-height:46px}
-.searchbar textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
-button.go{padding:12px 20px;font-size:1rem;border:0;border-radius:10px;cursor:pointer;
-  background:var(--accent);color:var(--on-accent);font-weight:700;white-space:nowrap}
-button.go:disabled{opacity:.45;cursor:not-allowed}
+.searchbar{display:flex;flex-direction:column;gap:10px}
+.searchbar textarea{width:100%;padding:12px 14px;font-size:1rem;
+  border:1px solid var(--border);border-radius:10px;background:var(--input-bg);color:var(--ink);
+  font-family:inherit;resize:vertical;min-height:46px;box-sizing:border-box;
+  transition:box-shadow .15s ease,border-color .15s ease}
+.searchbar textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.25)}
+.searchbar-btns{display:flex;gap:8px;flex-wrap:wrap}
+button.go{flex:1;min-width:180px;padding:12px 20px;font-size:1rem;border:1px solid rgba(var(--accent-rgb),.5);
+  border-radius:10px;cursor:pointer;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 92%,white 8%),var(--accent-strong));
+  color:var(--on-accent);font-weight:700;white-space:nowrap;box-shadow:var(--btn-glow);
+  transition:box-shadow .18s ease,transform .06s ease}
+button.go:hover:not(:disabled){box-shadow:var(--btn-glow-hover)}
+button.go:active:not(:disabled){transform:translateY(1px)}
+button.go:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+button.go.secondary{background:var(--panel);color:var(--ink);border:1px solid var(--border-bright);box-shadow:none}
+button.go.secondary:hover:not(:disabled){border-color:var(--accent)}
 
 #status{margin:14px 2px;color:var(--muted);font-size:.9rem}
-.answer-box{background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;
-  padding:16px 18px;margin:16px 0;font-size:1rem}
+.answer-box{background:var(--accent-soft);border:1px solid var(--border-bright);border-radius:12px;
+  padding:16px 18px;margin:16px 0;font-size:1rem;
+  box-shadow:0 14px 32px -14px rgba(var(--accent-rgb),.4)}
 #answer{display:none}
 .answer-box .cite{color:var(--accent);cursor:pointer;font-weight:700;text-decoration:underline}
 .answer-box p{margin:0 0 10px}
@@ -94,16 +135,26 @@ button.go:disabled{opacity:.45;cursor:not-allowed}
 .answer-box li{margin:2px 0}
 .answer-box strong{color:var(--ink)}
 
-.disclaimer{display:none;background:var(--panel);border:1px solid var(--warn);
-  border-radius:12px;padding:12px 16px;margin:14px 0;font-size:.85rem;color:var(--muted)}
+.disclaimer{display:none;background:var(--panel-solid);border:1px solid var(--warn);
+  border-radius:12px;padding:12px 16px;margin:14px 0;font-size:.85rem;color:var(--muted);
+  box-shadow:var(--shadow)}
 .disclaimer strong{color:var(--warn)}
 
-.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;
-  padding:12px 14px;margin-bottom:10px;scroll-margin-top:14px}
-.card.cited{border-inline-start:4px solid var(--accent)}
+.card{background:var(--panel-solid);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;margin-bottom:10px;scroll-margin-top:14px;box-shadow:var(--shadow)}
+.card.cited{border-inline-start:4px solid var(--accent);
+  box-shadow:var(--shadow),0 0 0 1px rgba(var(--accent-rgb),.15)}
 .card .meta{display:flex;flex-wrap:wrap;gap:6px;align-items:baseline;margin-bottom:6px}
 .card .doc{font-weight:700;font-size:.85rem;color:var(--accent)}
 .card .clause{font-size:.8rem;color:var(--muted);font-family:ui-monospace,monospace}
+.card .muni-tag{font-size:.75rem;font-weight:600;color:var(--accent);background:var(--accent-soft);
+  padding:1px 8px;border-radius:999px;font-family:inherit}
+.table-wrap{overflow-x:auto;margin:12px 0;border:1px solid var(--border);border-radius:10px}
+.table-wrap table{border-collapse:collapse;width:100%;font-size:.88rem}
+.table-wrap th,.table-wrap td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.table-wrap th{background:var(--accent-soft);color:var(--accent);font-weight:700;white-space:nowrap}
+.table-wrap tr:last-child td{border-bottom:none}
+.table-wrap td .cite{font-size:.78rem}
 .card a.pdf-shot{display:block;margin:8px 0;border:1px solid var(--border);border-radius:8px;
   overflow:hidden;background:var(--bg)}
 .card a.pdf-shot img{display:block;width:100%;height:auto}
@@ -115,8 +166,8 @@ button.go:disabled{opacity:.45;cursor:not-allowed}
   border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:.75rem;
   font-weight:700;margin-inline-end:6px}
 
-.about{background:var(--panel);border:1px solid var(--border);border-radius:14px;
-  padding:16px 18px;margin-top:24px;font-size:.85rem;color:var(--muted)}
+.about{background:var(--panel-solid);border:1px solid var(--border);border-radius:14px;
+  padding:16px 18px;margin-top:24px;font-size:.85rem;color:var(--muted);box-shadow:var(--shadow)}
 
 @media (max-width:600px){
   .wrap{padding:10px 10px 50px}
@@ -132,6 +183,7 @@ button.go:disabled{opacity:.45;cursor:not-allowed}
   <header class="hero">
     <button class="theme-toggle" id="theme-toggle" title="Wissel licht/donker thema" aria-label="Wissel thema">🌙</button>
     <div class="hero-text">
+      <span class="kicker">Overheidsinformatie, begrijpelijk gemaakt</span>
       <h1>Slimme Gemeente Assistent</h1>
       <p>Stel uw vraag in gewone taal en krijg een duidelijk antwoord met bronvermelding naar de officiële webpagina's en documenten van uw gemeente.</p>
     </div>
@@ -148,15 +200,14 @@ button.go:disabled{opacity:.45;cursor:not-allowed}
     </div>
   </div>
 
-  <div class="tabs">
-    <button id="tab-ask" class="active">Vraag stellen</button>
-    <button id="tab-search">Zoeken</button>
-  </div>
-
   <div class="panel">
     <div class="searchbar">
       <textarea id="q" placeholder="Bijv. 'Wat kost een paspoort en welke documenten heb ik nodig?'"></textarea>
-      <button class="go" id="go" disabled>Zoeken</button>
+      <div class="searchbar-btns">
+        <button class="go" id="go-ask" disabled>💬 Vraag stellen</button>
+        <button class="go secondary" id="go-search" disabled>🔎 Gewoon zoeken</button>
+        <button class="go secondary" id="go-compare" disabled>⚖️ Vergelijken</button>
+      </div>
     </div>
   </div>
 
@@ -177,15 +228,16 @@ button.go:disabled{opacity:.45;cursor:not-allowed}
     Deze tool doorzoekt automatisch verzamelde (gecrawlde) webpagina's en documenten van de
     gekozen gemeente. Resultaten kunnen onvolledig of verouderd zijn; raadpleeg bij twijfel
     altijd de officiële website van de gemeente.
-    <div style="margin-top:10px"><a href="/" style="color:var(--accent)">← Over deze toepassing</a></div>
+    <div style="margin-top:10px"><a href="/" style="color:var(--accent)">← Over deze toepassing</a>
+    · <a href="/stats" style="color:var(--accent)">Gebruiksstatistieken</a></div>
   </div>
 </div>
 
 <script>
 const $ = sel => document.querySelector(sel);
-const qEl = $('#q'), goEl = $('#go'), statusEl = $('#status'), answerEl = $('#answer'),
-      resultsEl = $('#results'), disclaimerEl = $('#disclaimer'),
-      tabAsk = $('#tab-ask'), tabSearch = $('#tab-search');
+const qEl = $('#q'), goAskEl = $('#go-ask'), goSearchEl = $('#go-search'), goCompareEl = $('#go-compare'),
+      statusEl = $('#status'), answerEl = $('#answer'),
+      resultsEl = $('#results'), disclaimerEl = $('#disclaimer');
 const muniInput = $('#muni-input'), cbList = $('#cb-list'), combobox = $('#combobox');
 const muniLogo = $('#muni-logo'), muniLogoImg = $('#muni-logo-img');
 const themeToggle = $('#theme-toggle');
@@ -212,19 +264,6 @@ themeToggle.onclick = () => {
 };
 applyTheme(currentTheme());
 
-function setMode(m){
-  mode = m;
-  tabAsk.classList.toggle('active', m==='ask');
-  tabSearch.classList.toggle('active', m==='search');
-  goEl.textContent = m==='ask' ? 'Vraag stellen' : 'Zoeken';
-  qEl.placeholder = m==='ask'
-    ? "Bijv. 'Wat kost een paspoort en welke documenten heb ik nodig?'"
-    : "Bijv. 'paspoort kosten'";
-}
-tabAsk.onclick = () => setMode('ask');
-tabSearch.onclick = () => setMode('search');
-setMode('ask');
-
 function escapeHtml(s){
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -246,7 +285,7 @@ function renderCbOptions(list){
   });
 }
 
-function openCb(){ cbList.classList.add('open'); filterCb(muniInput.value); }
+function openCb(){ cbList.classList.add('open'); filterCb(muniInput.value === AUTO_OPTION.name ? '' : muniInput.value); }
 function closeCb(){ cbList.classList.remove('open'); }
 function filterCb(q){
   q = q.trim().toLowerCase();
@@ -266,18 +305,28 @@ function selectMuni(m){
   } else {
     muniLogo.style.display = 'none';
   }
-  goEl.disabled = false;
+  goAskEl.disabled = false;
+  goSearchEl.disabled = false;
+  goCompareEl.disabled = false;
   currentSiteHost = (m.website || '').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
 }
+
+// Synthetic "detect automatically" choice shown above the real list.
+const AUTO_OPTION = {slug:'', name:'Alle gemeenten (automatisch herkennen)', website:''};
+
+// Sort key that ignores a leading apostrophe so "'s-Hertogenbosch" lands under
+// "S" (as "s-hertogenbosch") instead of sorting before every "A…" name.
+const sortName = n => (n || '').toLowerCase().replace(/^['’\s]+/, '');
 
 async function loadMunicipalities(){
   try{
     const res = await fetch('/api/municipalities');
     const data = await res.json();
-    municipalities = data.municipalities || [];
+    municipalities = (data.municipalities || []).sort((a,b) =>
+      sortName(a.name).localeCompare(sortName(b.name), 'nl'));
   }catch(e){ municipalities = []; }
-  renderCbOptions(municipalities);
-  // No default selection — the user must pick a municipality first.
+  renderCbOptions([AUTO_OPTION, ...municipalities]);
+  selectMuni(AUTO_OPTION);   // default: let the question name the gemeente
 }
 
 muniInput.addEventListener('focus', openCb);
@@ -290,17 +339,40 @@ muniInput.addEventListener('keydown', e => {
 });
 document.addEventListener('click', e => { if(!combobox.contains(e.target)) closeCb(); });
 
-// ---- lightweight markdown (bold, bullet/numbered lists) ----
+// ---- lightweight markdown (bold, bullet/numbered lists, tables) ----
+function renderTable(rows){
+  const parse = r => r.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+  const isSep = cells => cells.every(c => /^:?-{2,}:?$/.test(c));
+  const header = parse(rows[0]);
+  const body = [];
+  for(let k=1; k<rows.length; k++){
+    const cells = parse(rows[k]);
+    if(isSep(cells)) continue;
+    body.push(cells);
+  }
+  const ncol = header.length;
+  const th = header.map(c => `<th>${c}</th>`).join('');
+  const trs = body.map(cells =>
+    `<tr>${Array.from({length:ncol}, (_,j) => `<td>${cells[j] || ''}</td>`).join('')}</tr>`
+  ).join('');
+  return `<div class="table-wrap"><table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table></div>`;
+}
+
 function renderMarkdownBlocks(text){
   const lines = text.split('\n');
   const blocks = [];
   let i = 0;
   const isBullet = l => /^\s*[-*]\s+/.test(l);
   const isNumbered = l => /^\s*\d+\.\s+/.test(l);
+  const isTableRow = l => /^\s*\|.*\|\s*$/.test(l);
   while(i < lines.length){
     const line = lines[i];
     if(line.trim() === ''){ i++; continue; }
-    if(isBullet(line)){
+    if(isTableRow(line)){
+      const rows = [];
+      while(i < lines.length && isTableRow(lines[i])){ rows.push(lines[i]); i++; }
+      blocks.push(renderTable(rows));
+    } else if(isBullet(line)){
       const items = [];
       while(i < lines.length && isBullet(lines[i])){ items.push(lines[i].replace(/^\s*[-*]\s+/, '')); i++; }
       blocks.push('<ul>' + items.map(it => `<li>${it}</li>`).join('') + '</ul>');
@@ -310,7 +382,7 @@ function renderMarkdownBlocks(text){
       blocks.push('<ol>' + items.map(it => `<li>${it}</li>`).join('') + '</ol>');
     } else {
       const para = [];
-      while(i < lines.length && lines[i].trim() !== '' && !isBullet(lines[i]) && !isNumbered(lines[i])){
+      while(i < lines.length && lines[i].trim() !== '' && !isBullet(lines[i]) && !isNumbered(lines[i]) && !isTableRow(lines[i])){
         para.push(lines[i]); i++;
       }
       blocks.push('<p>' + para.join('<br>') + '</p>');
@@ -354,6 +426,7 @@ function renderSource(s, i){
   const isPdf = s.doc_type === 'pdf';
   const loc = isPdf ? `PDF · pagina ${s.page_start}` : 'webpagina';
   const date = s.published_at ? `<span class="clause">${escapeHtml(s.published_at)}</span>` : '';
+  const muniLabel = s.municipality_name ? `<span class="muni-tag">${escapeHtml(s.municipality_name)}</span>` : '';
   let media = '';
   if(isPdf){
     media = `
@@ -370,6 +443,7 @@ function renderSource(s, i){
     <div class="meta">
       <span class="num-badge">${i+1}</span>
       <span class="doc">${escapeHtml(s.document_title)}</span>
+      ${muniLabel}
       <span class="clause">${loc}</span>
       ${date}
     </div>
@@ -398,30 +472,50 @@ function renderAnswer(answer, error){
   wireCites(answerEl);
 }
 
-async function run(){
-  if(!currentSlug){
+async function run(m){
+  if(currentSlug === null){
     statusEl.textContent = 'Kies eerst uw gemeente om te kunnen zoeken.';
     return;
   }
   const query = qEl.value.trim();
   if(!query) return;
-  goEl.disabled = true;
+  mode = m;
+  goAskEl.disabled = true;
+  goSearchEl.disabled = true;
   answerEl.style.display = 'none';
   resultsEl.innerHTML = '';
-  statusEl.textContent = mode === 'ask' ? 'Zoeken en antwoord genereren…' : 'Zoeken…';
+  statusEl.textContent = mode === 'ask' ? 'Zoeken en antwoord genereren…'
+                        : mode === 'compare' ? 'Vergelijken en antwoord genereren…'
+                        : 'Zoeken…';
   try{
+    const isAuto = (currentSlug === '');
     if(mode === 'search'){
       const res = await fetch('/api/search', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({query, top_k: 20, municipality: currentSlug})});
+        body: JSON.stringify({query, top_k: 20, municipality: currentSlug || null})});
       const data = await res.json();
-      statusEl.textContent = `${data.results.length} resultaten`;
+      if(!res.ok){ statusEl.textContent = data.detail || 'Er ging iets mis.'; return; }
+      statusEl.textContent = `${data.results.length} resultaten` +
+        (isAuto && data.municipality_name ? ` · gemeente ${data.municipality_name}` : '');
       renderSources(data.results);
-    } else {
-      const res = await fetch('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({question: query, top_k: 8, municipality: currentSlug})});
+    } else if(mode === 'compare'){
+      const res = await fetch('/api/compare', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({question: query, top_k: 4, municipalities: null})});
       const data = await res.json();
+      if(!res.ok){ statusEl.textContent = data.detail || 'Er ging iets mis.'; return; }
+      const names = (data.municipalities || []).map(m => m.name);
+      statusEl.textContent = `Vergelijking van ${names.join(', ')} · ${data.sources.length} bronnen geraadpleegd` +
+        (data.truncated ? ' (getoond: eerste 8 gemeenten)' : '');
+      renderAnswer(data.answer, data.error);
+      renderSources(data.sources);
+    } else {
+
+      const res = await fetch('/api/ask', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({question: query, top_k: 8, municipality: currentSlug || null})});
+      const data = await res.json();
+      if(!res.ok){ statusEl.textContent = data.detail || 'Er ging iets mis.'; return; }
       statusEl.textContent = `${data.sources.length} bronnen geraadpleegd` +
-        (data.agentic ? ` (live opgehaald van ${currentSiteHost})` : '');
+        (isAuto && data.municipality_name ? ` · gemeente ${data.municipality_name}` : '') +
+        (data.agentic && currentSiteHost ? ` (live opgehaald van ${currentSiteHost})` : '');
       renderAnswer(data.answer, data.error);
       renderSources(data.sources);
     }
@@ -429,12 +523,16 @@ async function run(){
   } catch(e){
     statusEl.textContent = 'Er ging iets mis: ' + e;
   } finally {
-    goEl.disabled = !currentSlug;
+    goAskEl.disabled = (currentSlug === null);
+    goSearchEl.disabled = (currentSlug === null);
+    goCompareEl.disabled = (currentSlug === null);
   }
 }
-goEl.onclick = run;
+goAskEl.onclick = () => run('ask');
+goSearchEl.onclick = () => run('search');
+goCompareEl.onclick = () => run('compare');
 qEl.addEventListener('keydown', e => {
-  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); run(); }
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); run('ask'); }
 });
 
 loadMunicipalities();

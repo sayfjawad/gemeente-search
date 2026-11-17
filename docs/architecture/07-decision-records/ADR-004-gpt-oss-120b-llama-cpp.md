@@ -1,6 +1,6 @@
 # ADR-004: GPT-OSS-120B via llama.cpp op de gx10-node (reasoning-model)
 
-* **Status:** Accepted (node gewijzigd, zie [ADR-013](ADR-013-deepseek-tijdelijke-failover.md) / [ADR-014](ADR-014-verhuizing-naar-c4130.md))
+* **Status:** Superseded door [ADR-016](ADR-016-qwen-op-c4130-via-vllm.md) (node eerder gewijzigd via [ADR-013](ADR-013-deepseek-tijdelijke-failover.md) / [ADR-014](ADR-014-verhuizing-naar-c4130.md))
 * **Datum:** 2026-08-21
 * **Auteur:** Sayf (met Claude)
 

@@ -1,11 +1,13 @@
 [Unit]
-Description=Gemeente IJsselstein smart search (FastAPI, port 8905)
+Description=Gemeente smart search (FastAPI, port 8905)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=exec
 WorkingDirectory=%h/git/gemeente-search
+# Gedeelde Hugging Face-cache (BGE-M3); pas aan naar je eigen pad.
+Environment=HF_HOME=/data/scrib-r/hf-cache
 EnvironmentFile=%h/git/gemeente-search/.env
 ExecStart=%h/git/gemeente-search/.venv/bin/python3 -m uvicorn app:app --host 0.0.0.0 --port 8905
 Restart=always

@@ -18,7 +18,7 @@ taalmodel niet lokaal (Ollama) draait maar op de gx10-node (zie ADR-004).
 De bestaande topologie wordt hergebruikt:
 - systemd-`--user`-unit op de GPU-node (Z8), poort **8905**;
 - de runtime-venv wordt gedeeld met `lift-normen-search`
-  (`/data/git/lift-normen-search/.venv`), een bewezen ML-stack;
+  (`~/git/lift-normen-search/.venv`), een bewezen ML-stack;
 - nginx + certbot op de edge-VPS, TLS-terminatie, `proxy_pass` naar de
   GPU-node over Tailscale (`gemeente.multicode.nl`);
 - het taalmodel (GPT-OSS-120B) draait op de gx10-node via llama.cpp

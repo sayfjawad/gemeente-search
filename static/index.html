@@ -45,7 +45,10 @@ a{color:var(--accent)}
 .theme-toggle:hover{border-color:var(--accent)}
 
 header.hero{border-radius:18px;overflow:hidden;margin:6px 0 8px;
-  padding:42px 28px;color:#fff;background-image:linear-gradient(135deg,var(--hero-from) 0%,var(--hero-to) 100%);
+  padding:42px 28px;color:#fff;
+  background-image:linear-gradient(135deg,color-mix(in srgb,var(--hero-from) 86%,transparent) 0%,color-mix(in srgb,var(--hero-to) 78%,transparent) 100%),
+    url('/img/hero-gemeentebalie.jpg');
+  background-size:cover;background-position:center 25%;background-repeat:no-repeat;
   box-shadow:var(--shadow)}
 header.hero .kicker{display:inline-block;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;
   background:rgba(255,255,255,.16);padding:4px 12px;border-radius:999px;margin-bottom:16px}
@@ -75,6 +78,7 @@ section .lead{color:var(--muted);max-width:720px;margin:0 0 16px}
 .muni .tile img{max-width:80%;max-height:80%;object-fit:contain}
 .muni .name{font-weight:700;font-size:.95rem}
 .muni .sub{font-size:.78rem;color:var(--muted);margin-top:2px}
+.muni-loading{color:var(--muted);grid-column:1/-1;text-align:center;padding:12px}
 
 .note{background:var(--accent-soft);border:1px solid var(--accent);border-radius:12px;
   padding:14px 18px;font-size:.92rem}
@@ -163,35 +167,14 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);
 
   <section id="gemeenten">
     <h2>Ondersteunde gemeenten</h2>
-    <p class="lead">De toepassing ondersteunt op dit moment de volgende vijf gemeenten:</p>
-    <div class="grid">
-      <div class="muni">
-        <div class="tile"><img src="/logos/ijsselstein.png" alt="Logo IJsselstein"></div>
-        <div class="name">IJsselstein</div>
-      </div>
-      <div class="muni">
-        <div class="tile" style="background:#F06F74"><img src="/logos/nieuwegein.svg" alt="Logo Nieuwegein"></div>
-        <div class="name">Nieuwegein</div>
-      </div>
-      <div class="muni">
-        <div class="tile"><img src="/logos/vijfheerenlanden.svg" alt="Logo Vijfheerenlanden"></div>
-        <div class="name">Vijfheerenlanden</div>
-        <div class="sub">16 dorpen en steden</div>
-      </div>
-      <div class="muni">
-        <div class="tile"><img src="/logos/utrecht.svg" alt="Logo Utrecht"></div>
-        <div class="name">Utrecht</div>
-      </div>
-      <div class="muni">
-        <div class="tile"><img src="/logos/houten.svg" alt="Logo Houten"></div>
-        <div class="name">Houten</div>
-      </div>
+    <p class="lead">De toepassing ondersteunt op dit moment <span id="muni-count">alle Nederlandse</span> gemeenten:</p>
+    <div class="grid" id="muni-grid">
+      <p class="muni-loading">Gemeenten laden…</p>
     </div>
     <p class="note">
-      <strong>Beperkt door beperkte middelen.</strong> Deze dienst is bewust beperkt tot
-      bovenstaande gemeenten, omdat elke gemeente een eigen inspanning vraagt om de informatie
-      op te halen, te indexeren en actueel te houden. Wilt u dat uw gemeente wordt toegevoegd,
-      of wilt u meedenken over hoe dit breder kan worden opgeschaald? Neem dan contact op met
+      <strong>Landelijke dekking.</strong> Deze dienst doorzoekt de officiële website van elke
+      Nederlandse gemeente. Ontbreekt informatie voor uw gemeente, of wilt u iets melden over de
+      dekking? Neem dan contact op met
       <a href="https://stichtingduurzaamai.nl" target="_blank" rel="noopener noreferrer">stichtingduurzaamai.nl</a>.
     </p>
   </section>
@@ -200,6 +183,7 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);
     Dit is een initiatief om overheidsinformatie toegankelijker te maken. Voor het onboarden van
     nieuwe gemeenten of vragen over de dienst: <a href="https://stichtingduurzaamai.nl"
     target="_blank" rel="noopener noreferrer">stichtingduurzaamai.nl</a>.
+    <br><a href="/stats">Gebruiksstatistieken bekijken →</a>
   </footer>
 </div>
 
@@ -221,6 +205,47 @@ footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);
     apply(next);
   };
   apply(current());
+})();
+
+// Gemeentetegels: opgehaald uit /api/municipalities i.p.v. hardcoded, zodat
+// deze sectie automatisch klopt zodra er een gemeente bij komt of afvalt.
+(function(){
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  const grid = document.getElementById('muni-grid');
+  const countEl = document.getElementById('muni-count');
+
+  fetch('/api/municipalities')
+    .then(r => r.json())
+    .then(data => {
+      const bySlug = new Map();
+      for(const m of data.municipalities){
+        if(!bySlug.has(m.slug)){
+          bySlug.set(m.slug, {...m, aliasCount: 0});
+        }
+        if(m.name !== m.muni_name) bySlug.get(m.slug).aliasCount++;
+      }
+      const munis = [...bySlug.values()].sort((a, b) => a.muni_name.localeCompare(b.muni_name, 'nl'));
+
+      countEl.textContent = `alle ${munis.length}`;
+      grid.innerHTML = munis.map(m => `
+        <div class="muni">
+          <div class="tile"${m.logo_bg ? ` style="background:${escapeHtml(m.logo_bg)}"` : ''}>
+            ${m.logo ? `<img src="/${m.logo}" alt="Logo ${escapeHtml(m.muni_name)}" width="64" height="64" loading="lazy" decoding="async">` : ''}
+          </div>
+          <div class="name">${escapeHtml(m.muni_name)}</div>
+          ${m.aliasCount > 0 ? `<div class="sub">${m.aliasCount} dorpen en kernen</div>` : ''}
+        </div>
+      `).join('');
+    })
+    .catch(err => {
+      console.error('kon gemeentelijst niet laden', err);
+      grid.innerHTML = '<p class="muni-loading">Gemeentelijst kon niet worden geladen.</p>';
+    });
 })();
 </script>
 </body>

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Gebruiksstatistieken van de Slimme Gemeente Assistent: zoekopdrachten, bezoekers en gebruik per gemeente.">
+<title>Gebruiksstatistieken — Slimme Gemeente Assistent</title>
+<style>
+:root{
+  --bg:#f5f7fa; --panel:#ffffff; --ink:#0f172a; --muted:#64748b;
+  --accent:#2563eb; --accent-strong:#1d4ed8; --accent-soft:#dbeafe; --on-accent:#ffffff;
+  --border:#e2e8f0;
+  --shadow:0 8px 24px rgba(15,23,42,.10);
+}
+:root[data-theme="dark"]{
+  --bg:#0b1220; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8;
+  --accent:#3b82f6; --accent-strong:#60a5fa; --accent-soft:#1e293b; --on-accent:#ffffff;
+  --border:#1f2937;
+  --shadow:0 8px 24px rgba(0,0,0,.45);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0b1220; --panel:#111827; --ink:#e5e7eb; --muted:#94a3b8;
+    --accent:#3b82f6; --accent-strong:#60a5fa; --accent-soft:#1e293b; --on-accent:#ffffff;
+    --border:#1f2937;
+    --shadow:0 8px 24px rgba(0,0,0,.45);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,sans-serif;line-height:1.65}
+a{color:var(--accent)}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px 70px}
+
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0}
+.topbar .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem}
+.topbar .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.theme-toggle{width:38px;height:38px;border-radius:50%;border:1px solid var(--border);
+  background:var(--panel);color:var(--ink);font-size:1.05rem;cursor:pointer;line-height:1}
+.theme-toggle:hover{border-color:var(--accent)}
+
+h1{font-size:1.7rem;margin:14px 0 4px;font-weight:800;letter-spacing:-.02em}
+.muted{color:var(--muted);font-size:.88rem}
+h2{font-size:1.1rem;margin:34px 0 2px}
+.sub{color:var(--muted);font-size:.84rem;margin:0}
+
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:12px;margin:22px 0 4px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px 16px;
+  box-shadow:var(--shadow)}
+.card .num{font-size:1.85rem;font-weight:800;color:var(--accent);font-variant-numeric:tabular-nums;
+  letter-spacing:-.02em}
+.card .lbl{color:var(--muted);font-size:.82rem}
+
+.chart-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  padding:16px 14px 8px;margin-top:12px;position:relative;box-shadow:var(--shadow)}
+#chart{width:100%;height:190px;display:block;overflow:visible}
+.bar{fill:var(--accent)}
+.bar:hover{fill:var(--accent-strong)}
+.axis-line{stroke:var(--border);stroke-width:1}
+.tick-label{fill:var(--muted);font-size:9px;font-family:inherit}
+#tooltip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);
+  font-size:.78rem;padding:4px 9px;border-radius:6px;white-space:nowrap;display:none;
+  transform:translate(-50%,-115%);z-index:5}
+.empty{color:var(--muted);font-size:.85rem;text-align:center;padding:44px 0}
+
+.table-wrap{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+  overflow:hidden;margin-top:12px;box-shadow:var(--shadow)}
+.scroll{max-height:420px;overflow:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:9px 14px;border-bottom:1px solid var(--border);text-align:start;
+  font-variant-numeric:tabular-nums;font-size:.9rem}
+th{background:var(--accent-soft);font-size:.79rem;position:sticky;top:0;z-index:1}
+tbody tr:last-child td{border-bottom:none}
+td.num,th.num{text-align:end}
+
+footer{margin-top:44px;padding-top:18px;border-top:1px solid var(--border);
+  font-size:.82rem;color:var(--muted)}
+@media (max-width:600px){ h1{font-size:1.4rem} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="topbar">
+    <div class="brand"><span class="dot"></span> Slimme Gemeente Assistent</div>
+    <button class="theme-toggle" id="theme-toggle" title="Wissel licht/donker thema" aria-label="Wissel thema">🌙</button>
+  </nav>
+
+  <h1>Gebruiksstatistieken</h1>
+  <div class="muted" id="since">Statistieken laden…</div>
+
+  <div class="cards">
+    <div class="card"><div class="num" id="total">…</div><div class="lbl">Totaal zoekopdrachten</div></div>
+    <div class="card"><div class="num" id="ips">…</div><div class="lbl">Unieke IP-adressen</div></div>
+    <div class="card"><div class="num" id="search">…</div><div class="lbl">🔍 Alleen zoeken</div></div>
+    <div class="card"><div class="num" id="ask">…</div><div class="lbl">🤖 Vraag de AI</div></div>
+    <div class="card"><div class="num" id="compare">…</div><div class="lbl">⚖️ Vergelijken</div></div>
+    <div class="card"><div class="num" id="today">…</div><div class="lbl">Vandaag</div></div>
+    <div class="card"><div class="num" id="today-ips">…</div><div class="lbl">Bezoekers vandaag</div></div>
+    <div class="card"><div class="num" id="live">…</div><div class="lbl">Gemeenten doorzoekbaar</div></div>
+  </div>
+
+  <h2>Laatste 30 dagen</h2>
+  <p class="sub">Zoekopdrachten per dag — beweeg over een staaf voor het exacte aantal.</p>
+  <div class="chart-wrap">
+    <svg id="chart" preserveAspectRatio="none" role="img" aria-label="Zoekopdrachten per dag"></svg>
+    <div id="tooltip"></div>
+  </div>
+
+  <h2>Meest gezochte gemeenten</h2>
+  <p class="sub" id="muni-sub">Top 25 op aantal zoekopdrachten.</p>
+  <div class="table-wrap"><div class="scroll">
+    <table>
+      <thead><tr><th>Gemeente</th><th class="num">Zoekopdrachten</th><th class="num">Unieke IP's</th></tr></thead>
+      <tbody id="munis"></tbody>
+    </table>
+  </div></div>
+
+  <h2>Per dag</h2>
+  <div class="table-wrap"><div class="scroll">
+    <table>
+      <thead><tr><th>Datum</th><th class="num">Zoekopdrachten</th><th class="num">Unieke IP's</th></tr></thead>
+      <tbody id="days"></tbody>
+    </table>
+  </div></div>
+
+  <footer>
+    Er worden geen persoonsgegevens getoond: alleen aantallen en het aantal unieke IP-adressen.
+    <a href="/">← Over deze toepassing</a> · <a href="/zoek">Start met zoeken →</a>
+  </footer>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+
+(function(){
+  const t = $('#theme-toggle');
+  function current(){
+    const s = localStorage.getItem('theme');
+    if(s === 'light' || s === 'dark') return s;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function apply(theme){
+    document.documentElement.dataset.theme = theme;
+    t.textContent = theme === 'dark' ? '☀️' : '🌙';
+  }
+  t.onclick = function(){
+    const next = current() === 'dark' ? 'light' : 'dark';
+    localStorage.setItem('theme', next);
+    apply(next);
+  };
+  apply(current());
+})();
+
+const NL = n => (n ?? 0).toLocaleString('nl-NL');
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c => ({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let data = null;
+
+function fmtDate(iso){
+  const [y,m,d] = iso.split('-');
+  return `${d}-${m}-${y}`;
+}
+
+function renderDays(){
+  const tb = $('#days');
+  const rows = (data.per_day || []).slice().reverse();   // meest recente bovenaan
+  tb.innerHTML = rows.length
+    ? rows.map(r => `<tr><td>${fmtDate(r.date)}</td><td class="num">${NL(r.queries)}</td>` +
+                    `<td class="num">${NL(r.unique_ips)}</td></tr>`).join('')
+    : `<tr><td colspan="3" class="muted">Geen activiteit in deze periode.</td></tr>`;
+}
+
+function renderMunis(){
+  const tb = $('#munis');
+  const rows = data.per_municipality || [];
+  tb.innerHTML = rows.length
+    ? rows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td class="num">${NL(r.queries)}</td>` +
+                    `<td class="num">${NL(r.unique_ips)}</td></tr>`).join('')
+    : `<tr><td colspan="3" class="muted">Nog geen zoekopdrachten met een gemeente vastgelegd.</td></tr>`;
+  // Queries logged before the per-gemeente column existed can't be attributed.
+  if(data.untracked_queries > 0){
+    $('#muni-sub').textContent =
+      `Top 25 op aantal zoekopdrachten. ${NL(data.untracked_queries)} oudere zoekopdrachten ` +
+      `zijn niet aan een gemeente toe te wijzen.`;
+  }
+}
+
+function renderChart(){
+  const svg = $('#chart');
+  const wrap = svg.parentElement;
+  wrap.querySelectorAll('.empty').forEach(e => e.remove());
+  const days = data.per_day || [];
+  if(!days.length){
+    svg.style.height = '0';
+    wrap.insertAdjacentHTML('beforeend', `<div class="empty">Nog geen activiteit om te tonen.</div>`);
+    return;
+  }
+  svg.style.height = '';
+  const W = Math.max(120, wrap.clientWidth - 28), H = 180;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const max = Math.max(1, ...days.map(d => d.queries));
+  const gap = 3, n = days.length, bw = Math.max(2, W / n - gap);
+  const baseline = H - 16;
+  let html = `<line class="axis-line" x1="0" y1="${baseline}" x2="${W}" y2="${baseline}"/>`;
+  days.forEach((d, i) => {
+    const h = Math.max(1, (d.queries / max) * (baseline - 6));
+    const x = i * (bw + gap);
+    html += `<rect class="bar" x="${x}" y="${baseline - h}" width="${bw}" height="${h}" rx="2"
+      data-date="${d.date}" data-q="${d.queries}" data-ips="${d.unique_ips}"></rect>`;
+    if(i === 0 || i === n - 1 || i === Math.floor(n / 2)){
+      html += `<text class="tick-label" x="${x}" y="${H - 2}">${d.date.slice(5)}</text>`;
+    }
+  });
+  svg.innerHTML = html;
+
+  const tip = $('#tooltip');
+  svg.querySelectorAll('.bar').forEach(bar => {
+    bar.addEventListener('mouseenter', () => {
+      const r = svg.getBoundingClientRect(), br = bar.getBoundingClientRect();
+      tip.style.display = 'block';
+      tip.style.left = (br.left - r.left + br.width / 2) + 'px';
+      tip.style.top = (br.top - r.top) + 'px';
+      tip.textContent = `${fmtDate(bar.dataset.date)}: ${NL(+bar.dataset.q)} zoekopdrachten · ` +
+                        `${NL(+bar.dataset.ips)} IP`;
+    });
+    bar.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+  });
+}
+
+fetch('/api/statistics').then(r => r.json()).then(d => {
+  data = d;
+  const set = (id, v) => { $('#' + id).textContent = NL(v); };
+  set('total', d.total_queries);   set('ips', d.unique_ips);
+  set('search', d.search_queries); set('ask', d.ask_queries);
+  set('compare', d.compare_queries);
+  set('today', d.today_queries);   set('today-ips', d.today_unique_ips);
+  set('live', d.municipalities_live);
+  $('#since').textContent = d.since
+    ? `Bijgehouden sinds ${fmtDate(d.since)}`
+    : 'Nog geen gebruiksdata';
+  renderChart(); renderDays(); renderMunis();
+}).catch(() => {
+  $('#since').textContent = 'Statistieken konden niet worden geladen.';
+});
+
+let rt;
+window.addEventListener('resize', () => {
+  if(!data) return;
+  clearTimeout(rt);
+  rt = setTimeout(renderChart, 150);
+});
+</script>
+</body>
+</html>

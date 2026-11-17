@@ -1,52 +1,56 @@
 # Gedeelde infrastructuur
 
 `gemeente-search` deelt de fysieke en logische infrastructuur met de andere
-zoekapps op dit account. Deze gedeeldheid is een bewuste keuze
-([D5 — hergebruik](../01-architecture-principles/architectural-drivers.md)),
-met als gevolg ook een gedeelde verantwoordelijkheid voor versies en capaciteit.
+zoekapps. Dat is een bewuste keuze
+([D5 — hergebruik](../01-architecture-principles/architectural-drivers.md)).
+Het gevolg is ook een gedeelde verantwoordelijkheid voor versies en
+capaciteit.
 
-## GPU-node (Z8)
+## GPU-server (C4130, datacenter)
 
-- **Rol**: draait de service (poort 8905, systemd `--user`) én de
-  BGE-M3-embedding voor de offline pijplijn.
-- **Hardware**: 2× Tesla V100 (32 GB totaal).
-- **Deling**: dezelfde node draait de units van wilders/yesilgoz/lift-normen/
-  abo-ali/slimme-archief op poorten 8902–8905.
+- **Rol**: draait de service (`:8905`, systemd `--user`) en de gedeelde
+  LLM-dienst (`:8080`). Zie [ADR-017](../07-decision-records/ADR-017-hosting-op-c4130-met-nas-data.md).
+- **Hardware**: 4× Tesla V100-SXM2-32GB. Alle vier worden door de LLM
+  gebruikt; de app embedt queries daarom op de **CPU**.
+- **Deling**: dezelfde host draait ook `lift-normen-search` (8904),
+  `politicus-search` (8908) en andere diensten.
+
+## LLM-dienst
+
+- Qwen3.8-27B op vLLM, `127.0.0.1:8080` vanaf de app gezien. Zie
+  [03-platforms/llm-node.md](../03-platforms/llm-node.md).
+
+## NAS
+
+- Share `gemeente-data` (~420 GB crawl-tekst + PDF's), via NFS gemount op
+  de GPU-server. De `data/<slug>/crawl`- en `data/<slug>/pdfs`-mappen zijn
+  symlinks daarheen.
+- Dagelijkse backup van de indexen + `stats.sqlite` naar dezelfde share.
+  De share wordt gerepliceerd naar een tweede NAS.
 
 ## Gedeelde Python-venv
 
-- Pad: `/data/git/lift-normen-search/.venv`.
+- `.venv` is een symlink naar de venv van `lift-normen-search`.
 - Bevat: `fastapi`, `uvicorn`, `torch`, `transformers`, `numpy`, `httpx`,
   `pymupdf`, `playwright`, `trafilatura`, `beautifulsoup4`, `lxml`.
-- **Risico**: een versie-upgrade voor het ene project raakt alle andere. Zie
+- **Risico**: een versie-upgrade voor het ene project raakt het andere. Zie
   [constraints C2](../01-architecture-principles/constraints.md).
-
-## gx10-node (LLM)
-
-- Adres: `100.64.x.x:8083` (Tailscale), draait llama.cpp met GPT-OSS-120B.
-- Gedeeld met de zusterapps die dezelfde LLM gebruiken.
 
 ## Edge-VPS
 
-- nginx + certbot; publieke TLS-terminatie; proxyt per hostname/pad naar de
-  juiste poort op de GPU-node over Tailscale.
+- nginx + certbot; publieke TLS-terminatie; proxyt per hostname naar de
+  juiste poort op de GPU-server over het mesh-VPN.
 
 ## Hugging Face-modelcache
 
-- Pad: `/data/huggingface` (via `HF_HOME`).
-- Bevat onder meer `BAAI/bge-m3`, gedeeld door de zoekapps die BGE-M3
-  gebruiken.
-
-## Tailscale (netwerk)
-
-- Verbindt de nodes via `100.x.y.z`-adressen; de service bereikt de LLM en de
-  VPS bereikt de service.
+- Via `HF_HOME` (gezet in de systemd-unit). Bevat onder meer `BAAI/bge-m3`.
 
 ## Gevolgen voor gemeente-search
 
-1. **Poortkeuze**: 8905 is het volgende vrije nummer in de reeks.
-2. **Geen eigen venv**: dependencies volgen het lift-normen-search-project.
-3. **Capaciteitsdeling**: pieken in de ene app (bijv. een crawl) kunnen de
-   andere raken — voor deze demonstratie-belasting acceptabel.
-4. **Secrets**: SMTP-wachtwoord en (lege) LLM-key staan lokaal in `.env`,
-   nooit in git.
+1. **Geen eigen venv**: dependencies volgen het lift-normen-search-project.
+2. **Capaciteitsdeling**: drukte op de LLM-dienst door andere apps raakt de
+   antwoordtijd hier.
+3. **NAS-afhankelijkheid**: zonder NFS-mount werken antwoorden nog, maar
+   PDF-weergave niet.
+4. **Secrets**: SMTP-wachtwoord en een eventuele LLM-key staan alleen in
+   `.env`, nooit in git.

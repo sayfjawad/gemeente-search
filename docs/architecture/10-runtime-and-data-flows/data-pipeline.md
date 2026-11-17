@@ -33,6 +33,8 @@ data/<slug>/index.sqlite --> (build_index.py) : BGE-M3 (GPU)
    dynamische pagina's; Trafilatura extraheert leesbare tekst. Downloadt
    PDF-uploads. Respecteert robots.txt (site én CDN). Hervatbaar via
    `data/<slug>/crawl/state.json` → `data/<slug>/crawl/docs.jsonl`.
+   Sluit oneindige URL-ruimtes uit via een gelaagde trap-verdediging
+   (`fits_scope()`, zie ADR-015).
 2. **crawl_raad.py** — apart pad voor het raadsarchief (Notubiz `ris2`),
    jaren 2014–2027, per module-seed. robots.txt wordt hier bewust niet
    gehonoreerd (ADR-007) → `data/<slug>/crawl/raad_docs.jsonl`.

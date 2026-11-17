@@ -62,3 +62,10 @@ index gebouwd, service herstart) via TransIP SMTP — zie
   `data/<slug>/crawl/state.json` hervat de voortgang.
 - **Dubbelen**: `ingest.py` dedupliceert op canonical URL.
 - **Te grote PDF-set**: controleer `skip_paths` en het CDN-robotsbeleid.
+- **Crawl blijft hangen / 'N URL's te gaan' loopt niet terug**: de frontier
+  wordt bijgevuld door een crawl-trap (facet-zoek, TYPO3 Solr,
+  file-transfer-portaal of raads-kalender). Herken het aan één subdomein/pad
+  dat disproportioneel veel documenten oplevert:
+  `grep -o 'https://[^/]*/[^/]*/' data/<slug>/crawl/docs.jsonl | sort | uniq -c | sort -rn | head`.
+  Fix: `skip_paths` voor die gemeente, of een generieke laag in `crawl.py` —
+  zie ADR-015.

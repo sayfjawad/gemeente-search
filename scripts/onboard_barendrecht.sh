@@ -1,7 +1,7 @@
 #!/bin/bash
 # Onboard gemeente Barendrecht — full pipeline, emails at each milestone.
 # Designed to run fully detached (survives SSH logout).
-cd /data/git/gemeente-search || exit 1
+cd "$(dirname "$0")/.." || exit 1
 SLUG=barendrecht
 PY=".venv/bin/python3"
 LOGDIR="data/$SLUG/crawl"

@@ -59,3 +59,4 @@ index wordt gebruikt. Onboarden is één register-entry plus één pipeline-run.
 * [`muni.py`](../../../muni.py)
 * [`municipalities.json`](../../../municipalities.json)
 * [`app.py: load_index()`](../../../app.py)
+* [per-gemeente-afwijkingen](../03-platforms/per-gemeente-afwijkingen.md)

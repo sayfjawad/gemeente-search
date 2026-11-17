@@ -26,7 +26,8 @@ crawl moet compleet, respectvol (robots.txt) en herstartbaar zijn.
   dubbel crawlen.
 - **Scope-bewaking**: HTML alleen van de site (+ subdomeinen), PDF alleen van de
   CDN-tenant van die gemeente; interactieve portal-/appointment-/SSO-hosts en
-  oneindige filter-URL's worden uitgesloten.
+  oneindige filter-URL's worden uitgesloten. De gelaagde trap-verdediging
+  (inclusief `CALENDAR_TRAP` voor raads-kalenders) is uitgewerkt in ADR-015.
 - **Herstartbaar + polite**: checkpoint in `state.json`, begrensde concurrency
   (default 3) en een per-request delay (0,4 s).
 

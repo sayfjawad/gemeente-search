@@ -86,7 +86,7 @@ SKIP_EXT = re.compile(
     r"\.(jpe?g|png|gif|svg|webp|ico|css|js|zip|rar|7z|gz|tgz|mp3|mp4|m4a|avi|mov|wmv|flv|webm|woff2?|ttf|eot)$",
     re.I,
 )
-SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboard|formulier|afspraak|startform|select-idp|styleswitcher|shares|opinion_entries|meningen|prullenbak|evenementen|uitagenda|agenda-en-activiteiten|agenda-algemeen|nieuwsbrieven|nieuwsberichten-archief)", re.I)
+SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboard|formulier|afspraak|startform|select-idp|styleswitcher|shares|opinion_entries|meningen|prullenbak|evenementen|uitagenda|agenda-en-activiteiten|agenda-algemeen|nieuwsbrieven|nieuwsberichten-archief|form/)", re.I)
 # Interactive citizen-portal / appointment / SSO subdomains generate endless
 # parameterised URLs (mijn.<gemeente>.nl, afspraak.<gemeente>.nl, auth/saml).
 # They are navigation forms, not content — exclude the whole host.
@@ -97,7 +97,7 @@ SKIP_PATH = re.compile(r"/(login|logout|winkelwagen|api|wp-admin|wp-json|planboa
 # product-catalog pages ARE content (seeded from its sitemap, see
 # PRODUCT_SITEMAP); its /formulier/ + /afspraak/ wizard flows are skipped via
 # SKIP_PATH instead.
-SKIP_HOST = re.compile(r"^(www\.)?(mijn|afspraak|afspraken|formulieren|digitaal|zaak|zaken|zaaksysteem|berichten|open|data|digid|eherkenning|idp|sso|login|account|portal|onlinestadsgesprek|bouwdossiers|gemeentearchief|archief|stadsarchief|bibliotheek|belastingloket|waardwijzer|sport|uitslagen|sportencultuur|oorlogenvrede)\d*\.", re.I)
+SKIP_HOST = re.compile(r"^(www\.)?(mijn|afspraak|afspraken|formulieren|digitaal|zaak|zaken|zaaksysteem|berichten|open|data|digid|eherkenning|idp|sso|login|account|portal|onlinestadsgesprek|bouwdossiers|gemeentearchief|archief|stadsarchief|bibliotheek|belastingloket|waardwijzer|sport|uitslagen|sportencultuur|oorlogenvrede|nu|en)\d*\.", re.I)
 # Library portals often sit on a MIDDLE label (school.bibliotheek.rotterdam.nl,
 # wise-web.bibliotheek.rotterdam.nl, www.bibliotheek.<g>.nl) — the prefix
 # SKIP_HOST misses those. Skip any host carrying a `.bibliotheek.` segment.
@@ -147,6 +147,11 @@ TRAP_PARAM_SUBSTR = ("tx_solr", "languageswitch", "nav_id", "chash", "searchtype
 # Match only a standalone /kalender/ or /agenda/ segment followed by a digit,
 # so a real /afvalkalender page (waste-collection calendar) is never skipped.
 CALENDAR_TRAP = re.compile(r"/(kalender|agenda)/\d", re.I)
+# Public-notice archives (openbare-bekendmakingen / bekendmakingen) paginate
+# forever by date/category/neighbourhood — olst-wijhe 2026-08: 14 324 pages of
+# /bestuur/openbare-bekendmakingen = 36% of the whole crawl. Match the word
+# anywhere in the path (it's often hyphenated: openbare-bekendmakingen).
+BEKENDMAKINGEN_TRAP = re.compile(r"bekendmakingen", re.I)
 # Language-switch prefixes: apeldoorn mirrors every page under /ar/ /uk/ /tr/
 # /fr/ /de/ /pl/ /en/ (7 machine translations of the Dutch original) — 137k of
 # 138k crawled URLs. Skip them at the path level (Dutch content stays reachable).
@@ -176,6 +181,8 @@ def fits_scope(url: str) -> bool:
         return False
     if SKIP_PATH.search(path):
         return False
+    if BEKENDMAKINGEN_TRAP.search(path):
+        return False
     if CALENDAR_TRAP.search(path):
         return False
     if SKIP_LANG.search(path):
@@ -203,7 +210,7 @@ def fits_scope(url: str) -> bool:
     ):
         return True
     if host == CDN_HOST:
-        return path.startswith(CDN_UPLOAD_PREFIX) and PDF_PAT.search(path)
+        return bool(path.startswith(CDN_UPLOAD_PREFIX) and PDF_PAT.search(path))
     return False
 
 

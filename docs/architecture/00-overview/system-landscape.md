@@ -1,32 +1,31 @@
 # Systeemlandschap
 
-`gemeente-search` staat niet op zichzelf: het is lid van een **familie van
-GPU-backed zoekapplicaties** op dit account, die bewust dezelfde architectuur
-en infrastructuur delen.
+`gemeente-search` staat niet op zichzelf. Het hoort bij een **familie van
+zoekapplicaties** die bewust dezelfde architectuur en infrastructuur delen.
 
 ## De familie
 
-| Project | Domein | Opmerking |
+| Project | Domein | Poort |
 |---|---|---|
-| `wilders-search` | Zoeken over politieke transcripten | poort 8902 |
-| `yesilgoz-search` | Idem (variant) | poort 8903 |
-| `lift-normen-search` | NEN/EN-liftnormen | poort 8904, gedeelde venv, bron-ADR-structuur |
-| `abo-ali-search` | Zoeken over transcripten | zelfde GPU-retrieval-patroon |
-| `slimme-archief-zoeker` | Archiefzoeker | kopie van wilders-search-patroon |
-| **`gemeente-search`** | Gemeentewebsites | **dit project**, poort 8905 |
+| `lift-normen-search` | NEN/EN-liftnormen | 8904 (levert de gedeelde venv) |
+| **`gemeente-search`** | Gemeentewebsites | **8905 (dit project)** |
+| `politicus-search` | Politieke transcripten (opvolger van `wilders-search`/`yesilgoz-search`) | 8908 |
+| `slimme-archief-zoeker` | Archiefzoeker | — |
 
-## Gedeelde infrastructuur
+## Gedeelde infrastructuur (sinds oktober 2026)
 
-- **GPU-node (Z8)** — 2× Tesla V100; draait de systemd
-  `--user`-units (poorten 8902–8905) en de BGE-M3-embeddings.
-- **Gedeelde venv** — `/data/git/lift-normen-search/.venv` (torch,
-  transformers, pymupdf, fastapi), door de zoekapps hergebruikt.
-- **gx10-node (100.64.x.x)** — NVIDIA DGX Spark-klasse (GB10 Grace Blackwell,
-  128 GB unified memory); draait llama.cpp en serveert GPT-OSS-120B.
-- **Edge-VPS** — nginx + certbot, TLS-terminatie, proxy naar de GPU-node over
-  Tailscale.
-- **HF-modelcache** — `/data/huggingface`, gedeeld voor de embeddingmodellen.
+- **GPU-server (Dell C4130, datacenter)**: 4× V100-SXM2-32GB. Draait de
+  zoekapps als systemd `--user`-units én de gedeelde LLM-dienst
+  (Qwen3.8-27B op vLLM, `:8080`). Zie
+  [ADR-016](../07-decision-records/ADR-016-qwen-op-c4130-via-vllm.md) en
+  [ADR-017](../07-decision-records/ADR-017-hosting-op-c4130-met-nas-data.md).
+- **NAS (Synology, datacenter)**: crawl-data en PDF's via NFS. Wordt
+  gerepliceerd naar een tweede NAS.
+- **Edge-VPS**: nginx + certbot, TLS-terminatie, proxy over een privé
+  mesh-VPN naar de GPU-server.
+- **Gedeelde venv**: die van `lift-normen-search` (torch, transformers,
+  pymupdf, fastapi).
+- **Hugging Face-cache**: gedeelde `HF_HOME` voor BGE-M3.
 
 Zie [04-shared-resources](../04-shared-resources/shared-infrastructure.md) en
-[01-architecture-principles/influences.md](../01-architecture-principles/influences.md)
-voor de kruisbestuiving tussen deze projecten.
+[01-architecture-principles/influences.md](../01-architecture-principles/influences.md).

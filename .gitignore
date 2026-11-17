@@ -36,3 +36,5 @@ scripts/onboard_all.log
 scripts/*.bak-*
 *.bak-*
 .env.bak-*
+scripts/.step_*.log
+scripts/*.log

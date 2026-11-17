@@ -6,7 +6,10 @@
   chunks, index-/embedding-grootte).
 - **systemd-status** — `systemctl --user status gemeente-search.service`
   (uptime, herstarts).
+- **`/stats`** — publieke pagina met het gebruik over tijd (uit `stats.sqlite`).
 - **Onboarding-mijlpalen** — e-mailnotificaties via `scripts/notify.py`.
+- **Live onboarding-monitor** — `scripts/monitor.py` (poort 8906) tijdens
+  een landelijke uitrol.
 - **Crawl-voortgang** — `state.json` (aantal bezochte URL's) en
   `docs.jsonl` (aantal geoogste documenten).
 
@@ -16,9 +19,10 @@
 |---|---|
 | Draait de service? | `systemctl --user status gemeente-search` |
 | Bereikbaar van buiten? | `curl https://<domein>/api/municipalities` |
-| LLM-node bereikbaar? | `curl http://100.64.x.x:8083/v1/models` |
+| LLM-dienst bereikbaar? | `curl http://127.0.0.1:8080/v1/models` (op de GPU-server) |
 | Corpus van gemeente X compleet? | `curl localhost:8905/api/statistics` |
-| Schijfgebruik | `du -sh data/*/` |
+| Schijfgebruik | `du -shL data/*/` (volgt de NAS-symlinks) |
+| NAS-mount aanwezig? | `ls data/<slug>/pdfs/` geeft geen fout |
 
 ## Wat er (nog) niet is
 

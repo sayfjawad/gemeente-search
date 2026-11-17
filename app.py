@@ -34,6 +34,7 @@ from pydantic import BaseModel
 
 from embedder import Embedder
 import muni
+import muni_match
 
 BASE = Path(__file__).parent
 STATS_DB = BASE / "stats.sqlite"  # outside data/ so re-indexing keeps history
@@ -70,6 +71,22 @@ def get_muni_state(slug: str) -> dict:
 
 def resolve_slug(slug: str | None) -> str:
     return slug or muni.primary_slug()
+
+
+def resolve_or_detect(question: str, municipality: str | None) -> tuple[str, bool]:
+    """Resolve the municipality for a cross-municipality query.  An explicit
+    slug always wins; otherwise the municipality is detected from the question
+    text.  Returns (slug, detected)."""
+    if municipality:
+        return municipality, False
+    slug = muni_match.detect(question)
+    if slug is None:
+        raise HTTPException(
+            400,
+            "Noem de gemeente in uw vraag (bijv. '… in gemeente Utrecht') of "
+            "kies er een uit de lijst.",
+        )
+    return slug, True
 
 
 @app.on_event("startup")
@@ -126,7 +143,7 @@ def chunk_row_to_dict(row: sqlite3.Row, st: dict, slug: str, score: float | None
 
 def retrieve(query: str, top_k: int, document: str | None, slug: str) -> list[dict]:
     st = get_muni_state(slug)
-    q = _state["embedder"].encode([query]).to(_state["device"])
+    q = _state["embedder"].encode([query]).to(device=_state["device"], dtype=st["matrix"].dtype)
     scores = (st["matrix"] @ q.T).squeeze(1).float()
     if document:
         mask_ids = {
@@ -269,7 +286,12 @@ async def agentic_fetch(question: str, m: dict) -> list[dict]:
 def _stats_conn() -> sqlite3.Connection:
     conn = sqlite3.connect(STATS_DB, timeout=10)
     conn.execute("""CREATE TABLE IF NOT EXISTS queries (
-        ts TEXT DEFAULT (datetime('now')), mode TEXT, ip TEXT, query TEXT)""")
+        ts TEXT DEFAULT (datetime('now')), mode TEXT, ip TEXT, query TEXT,
+        municipality TEXT)""")
+    try:  # upgrade path for stats.sqlite files written before this column existed
+        conn.execute("ALTER TABLE queries ADD COLUMN municipality TEXT")
+    except sqlite3.OperationalError:
+        pass
     return conn
 
 
@@ -281,15 +303,24 @@ def client_ip(request: Request) -> str:
     return ip or (request.client.host if request.client else "unknown")
 
 
-def log_query(request: Request, mode: str, query: str):
+def log_query(request: Request, mode: str, query: str, slug: str | None = None):
     try:
         with _stats_conn() as conn:
             conn.execute(
-                "INSERT INTO queries (mode, ip, query) VALUES (?,?,?)",
-                (mode, client_ip(request), query[:500]),
+                "INSERT INTO queries (mode, ip, query, municipality) VALUES (?,?,?,?)",
+                (mode, client_ip(request), query[:500], slug),
             )
     except Exception as e:
         print(f"stats logging failed: {e}")
+
+
+def muni_name(slug: str) -> str:
+    """Display name for a logged slug; falls back to the slug itself for
+    municipalities that were disabled or renamed since the query was logged."""
+    try:
+        return muni.get(slug)["name"]
+    except KeyError:
+        return slug
 
 
 @app.get("/api/statistics")
@@ -306,15 +337,31 @@ def api_statistics():
             FROM queries WHERE ts >= datetime('now','-30 days')
             GROUP BY d ORDER BY d""").fetchall()
         first = conn.execute("SELECT MIN(date(ts)) FROM queries").fetchone()[0]
+        # Which gemeentes people actually use.  Rows logged before the
+        # municipality column existed have NULL and are grouped out.
+        per_muni = conn.execute("""
+            SELECT municipality, COUNT(*), COUNT(DISTINCT ip)
+            FROM queries WHERE municipality IS NOT NULL AND municipality <> ''
+            GROUP BY municipality ORDER BY COUNT(*) DESC LIMIT 25""").fetchall()
+        untracked = conn.execute(
+            "SELECT COUNT(*) FROM queries WHERE municipality IS NULL OR municipality = ''"
+        ).fetchone()[0]
     return {
         "total_queries": total,
         "search_queries": by_mode.get("search", 0),
         "ask_queries": by_mode.get("ask", 0),
+        "compare_queries": by_mode.get("compare", 0),
         "unique_ips": unique_ips,
         "today_queries": today[0],
         "today_unique_ips": today[1],
         "since": first,
+        "municipalities_live": len(_state["municipalities"]),
         "per_day": [{"date": d, "queries": q, "unique_ips": u} for d, q, u in per_day],
+        "per_municipality": [
+            {"slug": s, "name": muni_name(s), "queries": q, "unique_ips": u}
+            for s, q, u in per_muni
+        ],
+        "untracked_queries": untracked,
     }
 
 
@@ -329,9 +376,14 @@ class SearchReq(BaseModel):
 def api_search(req: SearchReq, request: Request):
     if not req.query.strip():
         raise HTTPException(400, "empty query")
-    slug = resolve_slug(req.municipality)
-    log_query(request, "search", req.query)
-    return {"results": retrieve(req.query, min(req.top_k, 100), req.document, slug)}
+    slug, detected = resolve_or_detect(req.query, req.municipality)
+    log_query(request, "search", req.query, slug)
+    return {
+        "results": retrieve(req.query, min(req.top_k, 100), req.document, slug),
+        "municipality": slug,
+        "municipality_name": muni.get(slug)["name"],
+        "detected": detected,
+    }
 
 
 @app.get("/api/municipalities")
@@ -390,8 +442,9 @@ def build_excerpts(sources: list[dict]) -> str:
             loc = f"PDF, pagina {s['page_start']}"
         else:
             loc = "webpagina"
+        muni_label = f" \u00b7 {s['municipality_name']}" if s.get("municipality_name") else ""
         parts.append(
-            f"[{i+1}] Bron: {s['document_title']} | {loc}\n{s['text']}"
+            f"[{i+1}] Bron: {s['document_title']}{muni_label} | {loc}\n{s['text']}"
         )
     return "\n\n".join(parts)
 
@@ -415,6 +468,66 @@ def fit_sources(sources: list[dict], max_chars: int = MAX_TOTAL_SOURCE_CHARS) ->
             text = text[: max(200, max_chars - total)]
         total += len(text)
         out.append({**s, "text": text})
+    return out
+
+
+def mark_citations(answer: str, sources: list[dict]) -> None:
+    """Flag each source whose [n] number appears in the answer."""
+    if not answer:
+        return
+    cited: set[int] = set()
+    for group in re.findall(r"\[([\d,\-\s]+)\]", answer):
+        for part in re.split(r"[,\s]+", group.strip()):
+            if "-" in part:
+                a, _, b = part.partition("-")
+                if a.isdigit() and b.isdigit():
+                    cited.update(range(int(a), int(b) + 1))
+            elif part.isdigit():
+                cited.add(int(part))
+    for i, s in enumerate(sources):
+        s["cited"] = (i + 1) in cited
+
+
+COMPARE_MAX_MUNIS = 8   # side-by-side budget: n_ctx=4096 can't hold all ~342
+
+
+def compare_system(names: list[str]) -> str:
+    joined = ", ".join(names)
+    return f"""Je vergelijkt gemeentelijke informatie van de gemeenten: {joined}.
+
+Burgers stellen een vraag over regels, voorwaarden, afhandelprocessen of
+prijzen en willen weten hoe deze gemeenten zich tot elkaar verhouden. Elk
+fragment is gemerkt met de gemeente waar het vandaan komt.
+
+Beantwoord de vraag uitsluitend op basis van de fragmenten, als een vergelijking:
+- Behandel eerst per gemeente de relevante feiten (bedragen, termijnen,
+  voorwaarden) en benoem daarna de overeenkomsten en verschillen.
+- Vermeld bedragen, termijnen en voorwaarden letterlijk zoals in de fragmenten
+  staan — verzin niets en rond niets af.
+- Zet na elke bewering het BRONNUMMER tussen blokhaken in het formaat [3] —
+  precies dat formaat, geen andere haakjes of combinaties.
+- Staat het antwoord voor een gemeente niet in de fragmenten, zeg dat dan
+  expliciet bij die gemeente.
+- Als fragmenten elkaar tegenspreken, benoem dat.
+- Geef geen waardeoordeel over welke gemeente "beter" is; blijf neutraal.
+
+Opmaak (eenvoudige Markdown, niets anders):
+- Vergelijk je meerdere gemeenten op dezelfde punten (bedragen, termijnen,
+  voorwaarden), gebruik dan een Markdown-tabel: gemeenten als kolommen, de
+  aspecten als rijen. Zet de [bronnummer]s direct achter de waarden.
+- Gebruik bullet-punten met "- " voor kwalitatieve verschillen; **vet** voor
+  kernwaarden.
+- Gebruik geen kopjes (#) en geen codeblokken."""
+
+
+def fit_sources_multi(groups: list[list[dict]], max_chars: int = MAX_TOTAL_SOURCE_CHARS) -> list[dict]:
+    """Give every municipality an equal share of the context budget so one
+    municipality's fragments can't crowd the others out, then flatten."""
+    n = max(1, len(groups))
+    budget = max(300, max_chars // n)
+    out: list[dict] = []
+    for g in groups:
+        out.extend(fit_sources(g, max_chars=budget))
     return out
 
 
@@ -481,10 +594,10 @@ MAX_SOURCES_IN_CONTEXT = 16
 async def api_ask(req: AskReq, request: Request):
     if not req.question.strip():
         raise HTTPException(400, "empty question")
-    slug = resolve_slug(req.municipality)
+    slug, detected = resolve_or_detect(req.question, req.municipality)
     st = get_muni_state(slug)
     m = muni.get(slug)
-    log_query(request, "ask", req.question)
+    log_query(request, "ask", req.question, slug)
 
     known_sources = []
     if req.known_source_ids:
@@ -524,18 +637,7 @@ async def api_ask(req: AskReq, request: Request):
     except Exception as e:
         error = str(e)
 
-    if answer:
-        cited: set[int] = set()
-        for group in re.findall(r"\[([\d,\-\s]+)\]", answer):
-            for part in re.split(r"[,\s]+", group.strip()):
-                if "-" in part:
-                    a, _, b = part.partition("-")
-                    if a.isdigit() and b.isdigit():
-                        cited.update(range(int(a), int(b) + 1))
-                elif part.isdigit():
-                    cited.add(int(part))
-        for i, s in enumerate(sources):
-            s["cited"] = (i + 1) in cited
+    mark_citations(answer, sources)
 
     return {
         "answer": answer,
@@ -543,6 +645,79 @@ async def api_ask(req: AskReq, request: Request):
         "sources": sources,
         "agentic": agentic,
         "user_message": user_turn(req.question, excerpts),
+        "municipality": slug,
+        "municipality_name": m["name"],
+        "detected": detected,
+    }
+
+
+class CompareReq(BaseModel):
+    question: str
+    municipalities: list[str] | None = None
+    top_k: int = 4
+
+
+@app.post("/api/compare")
+async def api_compare(req: CompareReq, request: Request):
+    if not req.question.strip():
+        raise HTTPException(400, "empty question")
+
+    # Explicit list wins; otherwise detect every municipality named in the question.
+    if req.municipalities:
+        slugs = [s for s in req.municipalities if s]
+    else:
+        slugs = muni_match.detect_all(req.question)
+
+    # Keep first-seen order, drop unknown/unloaded slugs.
+    seen, resolved = set(), []
+    for s in slugs:
+        if s in seen or s not in _state["municipalities"]:
+            continue
+        seen.add(s)
+        resolved.append(s)
+
+    if len(resolved) < 2:
+        raise HTTPException(
+            400,
+            "Noem minstens twee gemeenten om te vergelijken "
+            "(bijv. 'vergelijks paspoortkosten in Utrecht en Amsterdam').",
+        )
+    truncated = len(resolved) > COMPARE_MAX_MUNIS
+    resolved = resolved[:COMPARE_MAX_MUNIS]
+
+    # Retrieve top fragments per municipality and tag each source with its
+    # municipality so both the model and the user see where it came from.
+    groups = []
+    for slug in resolved:
+        srcs = retrieve(req.question, min(req.top_k, 10), None, slug)
+        for s in srcs:
+            s["municipality"] = slug
+            s["municipality_name"] = muni.get(slug)["name"]
+        groups.append(srcs)
+
+    sources = fit_sources_multi(groups)
+    excerpts = build_excerpts(sources)
+    names = [muni.get(s)["name"] for s in resolved]
+    messages = [{"role": "system", "content": compare_system(names)}]
+    messages.append({"role": "user", "content": user_turn(req.question, excerpts)})
+
+    answer, error = None, None
+    try:
+        answer = await call_llm(messages)
+    except Exception as e:
+        error = str(e)
+
+    mark_citations(answer, sources)
+    log_query(request, "compare", req.question, None)
+
+    return {
+        "answer": answer,
+        "error": error,
+        "sources": sources,
+        "user_message": user_turn(req.question, excerpts),
+        "municipalities": [{"slug": s, "name": muni.get(s)["name"]} for s in resolved],
+        "detected": req.municipalities is None,
+        "truncated": truncated,
     }
 
 
@@ -589,6 +764,11 @@ def pdf_file(slug: str, filename: str):
     if not path.is_file():
         raise HTTPException(404, "not found")
     return FileResponse(path, media_type="application/pdf")
+
+
+@app.get("/stats")
+def stats_page():
+    return FileResponse(BASE / "static" / "stats.html", media_type="text/html")
 
 
 @app.get("/zoek")
