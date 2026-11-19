@@ -2,6 +2,7 @@
 
 - [2026-08-21: lege antwoorden ondanks correcte bronnen (DeepSeek)](incident-2026-08-21-deepseek-lege-antwoorden.md)
 - [2026-08-23: onboarding-pipeline kan de live service niet herstarten](incident-2026-08-23-onboarding-restart-falen.md)
+- [2026-11-19: alle PDF-bronlinks geven "not found" (vergeten symlinks na NAS-verhuizing)](incident-2026-11-19-pdf-links-not-found.md)
 
 ## Registratie-format
 

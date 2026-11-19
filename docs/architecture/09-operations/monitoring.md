@@ -23,6 +23,8 @@
 | Corpus van gemeente X compleet? | `curl localhost:8905/api/statistics` |
 | Schijfgebruik | `du -shL data/*/` (volgt de NAS-symlinks) |
 | NAS-mount aanwezig? | `ls data/<slug>/pdfs/` geeft geen fout |
+| Wijzen alle links naar de NAS-mount? | `readlink data/*/pdfs data/*/crawl \| sed 's#/[^/]*/[a-z]*$##' \| sort \| uniq -c` geeft één regel, `/mnt/gemeente-live`; `find data/*/pdfs data/*/crawl -maxdepth 0 -xtype l` is leeg |
+| Bestaat elke geciteerde PDF? | per gemeente: elke `documents.filename` (doc_type `pdf`) uit `index.sqlite` staat in `data/<slug>/pdfs/`, en `curl -r 0-0 localhost:8905/pdf/<slug>/<bestand>` geeft 206 (zie incident 2026-11-19) |
 
 ## Wat er (nog) niet is
 
